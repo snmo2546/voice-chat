@@ -48,6 +48,36 @@ class VoiceRecordingResponseSerializer(serializers.Serializer):
     assistant_message = ChatMessageSerializer(required=False)
 
 
+class SendMessageRequestSerializer(serializers.Serializer):
+    """Serializer for sending messages to get AI responses."""
+    session_id = serializers.CharField(required=True, help_text='Chat session ID')
+    content = serializers.CharField(required=False, allow_blank=False, help_text='Message content for text messages')
+    message_id = serializers.IntegerField(required=False, help_text='Existing message ID for voice messages')
+    
+    def validate(self, data):
+        """Ensure either content or message_id is provided."""
+        if not data.get('content') and not data.get('message_id'):
+            raise serializers.ValidationError(
+                "Either 'content' (for text messages) or 'message_id' (for voice messages) is required"
+            )
+        
+        if data.get('content') and data.get('message_id'):
+            raise serializers.ValidationError(
+                "Provide either 'content' or 'message_id', not both"
+            )
+        
+        return data
+
+
+class SendMessageResponseSerializer(serializers.Serializer):
+    """Serializer for send message response."""
+    success = serializers.BooleanField()
+    message = serializers.CharField()
+    session_id = serializers.CharField(required=False)
+    assistant_message = ChatMessageSerializer(required=False, help_text='AI response')
+    error = serializers.CharField(required=False)
+
+
 class VoiceRecordingRequestSerializer(serializers.Serializer):
     """Serializer for uploading voice recordings."""
     recording = serializers.FileField(required=True)
