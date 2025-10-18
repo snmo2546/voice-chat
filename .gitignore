@@ -139,3 +139,6 @@ staticfiles/
 node_modules/
 npm-debug.log
 yarn-error.log
+
+# Agent files
+.claude
