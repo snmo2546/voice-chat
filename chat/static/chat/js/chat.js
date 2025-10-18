@@ -20,6 +20,23 @@ class VoiceChat {
         this.checkMicrophoneSupport();
     }
 
+    // Get CSRF token from cookie
+    getCsrfToken() {
+        const name = 'csrftoken';
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
     initializeEventListeners() {
         // Send button click
         this.sendBtn.addEventListener('click', () => this.sendMessage());
@@ -117,21 +134,40 @@ class VoiceChat {
         this.recordingTime.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
     }
 
-    handleAudioRecorded(audioBlob) {
-        // Create a URL for the audio blob
-        const audioUrl = URL.createObjectURL(audioBlob);
-
-        // For now, just show a message that audio was recorded
-        // In a real implementation, you would send this to a speech-to-text API
+    async handleAudioRecorded(audioBlob) {
+        // Show user message
         this.addMessage('user', `[Voice message recorded - ${(audioBlob.size / 1024).toFixed(1)} KB]`);
 
-        // TODO: Send audioBlob to backend for speech-to-text conversion
-        console.log('Audio recorded:', audioBlob);
+        try {
+            const formData = new FormData();
+            formData.append('recording', audioBlob, `recording_${Date.now()}.webm`);
 
-        // Simulate AI response
-        setTimeout(() => {
-            this.addMessage('assistant', 'Voice message received! Speech-to-text integration coming soon.');
-        }, 1000);
+            const response = await fetch('/api/chat/upload-recording/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': this.getCsrfToken(),
+                },
+                body: formData,
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                console.log('Recording uploaded successfully:', result.data);
+
+                // Show assistant response with upload confirmation
+                this.addMessage('assistant', `Voice message uploaded successfully! File: ${result.data.filename}`);
+
+                // TODO: Send the file URL to speech-to-text API for transcription
+                // For now, we just confirm the upload
+            } else {
+                console.error('Upload failed:', result.message);
+                this.addMessage('assistant', `Error uploading recording: ${result.message}`);
+            }
+        } catch (error) {
+            console.error('Error uploading recording:', error);
+            this.addMessage('assistant', 'Failed to upload voice message. Please try again.');
+        }
     }
 
     sendMessage() {
