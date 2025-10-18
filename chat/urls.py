@@ -1,10 +1,9 @@
 from django.urls import path, include
 from rest_framework import routers
-from . import views
 
+# API routes for chat functionality
 router = routers.DefaultRouter()
 
 urlpatterns = [
-    path('', views.chat_interface, name='chat_interface'),
-    path('api/', include(router.urls)),
+    path('', include(router.urls)),
 ]
