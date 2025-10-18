@@ -1,3 +1,6 @@
 from django.shortcuts import render
 
-# Create your views here.
+
+def chat_interface(request):
+    """Render the main chat interface."""
+    return render(request, 'chat/chat_interface.html')

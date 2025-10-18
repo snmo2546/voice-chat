@@ -1,0 +1,84 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Chat - AI Assistant</title>
+    <link rel="stylesheet" href="{% static 'chat/css/chat.css' %}">
+</head>
+<body>
+    <div class="chat-container">
+        <!-- Left Sidebar - Sessions -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>Chat Sessions</h2>
+                <button class="btn-new-chat" id="newChatBtn">+ New Chat</button>
+            </div>
+            <div class="sessions-list" id="sessionsList">
+                <!-- Sessions will be loaded here -->
+                <div class="session-item active">
+                    <div class="session-title">New Chat</div>
+                    <div class="session-meta">Just now · 0 messages</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side - Chat Area -->
+        <div class="chat-area">
+            <div class="chat-header">
+                <h1>AI Voice Assistant</h1>
+                <div class="user-info">
+                    {% if user.is_authenticated %}
+                        <span>{{ user.username }}</span>
+                    {% else %}
+                        <span>Guest</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Messages Container -->
+            <div class="messages-container" id="messagesContainer">
+                <div class="welcome-message">
+                    <h2>Welcome to Voice Chat!</h2>
+                    <p>Type a message or click the microphone button to record your voice.</p>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-area">
+                <div class="input-wrapper">
+                    <textarea
+                        id="messageInput"
+                        placeholder="Type your message here..."
+                        rows="1"
+                    ></textarea>
+                    <div class="input-actions">
+                        <button class="btn-voice" id="voiceBtn" title="Record voice message">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                <line x1="12" y1="19" x2="12" y2="23"></line>
+                                <line x1="8" y1="23" x2="16" y2="23"></line>
+                            </svg>
+                        </button>
+                        <button class="btn-send" id="sendBtn">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="recording-indicator" id="recordingIndicator" style="display: none;">
+                    <span class="recording-dot"></span>
+                    Recording... <span id="recordingTime">0:00</span>
+                    <button class="btn-stop-recording" id="stopRecordingBtn">Stop</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{% static 'chat/js/chat.js' %}"></script>
+</body>
+</html>
