@@ -139,3 +139,11 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
 }
+
+# Whisper Speech-to-Text Settings
+# Model options: 'tiny', 'base', 'small', 'medium', 'large'
+WHISPER_MODEL_SIZE = 'base'
+
+# Local LLM Settings (Ollama)
+LOCAL_LLM_ENDPOINT = 'http://localhost:11434/api/chat'
+LOCAL_LLM_MODEL = 'gpt-oss:20b'
