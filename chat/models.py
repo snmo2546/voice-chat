@@ -3,6 +3,55 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 
 
+class AudioFile(models.Model):
+    """Model to store audio file metadata and manage recordings."""
+    PENDING = 'pending'
+    TRANSCRIBING = 'transcribing'
+    COMPLETED = 'completed'
+    FAILED = 'failed'
+    
+    TRANSCRIPTION_STATUS_CHOICES = [
+        (PENDING, 'Pending'),
+        (TRANSCRIBING, 'Transcribing'),
+        (COMPLETED, 'Completed'),
+        (FAILED, 'Failed'),
+    ]
+    
+    file = models.FileField(upload_to='recordings/', help_text='Audio file')
+    original_filename = models.CharField(max_length=255, help_text='Original filename from upload')
+    file_size = models.IntegerField(help_text='File size in bytes')
+    mime_type = models.CharField(max_length=50, help_text='MIME type (e.g., audio/webm)')
+    duration = models.FloatField(null=True, blank=True, help_text='Duration in seconds')
+    transcription_status = models.CharField(
+        max_length=20,
+        choices=TRANSCRIPTION_STATUS_CHOICES,
+        default=PENDING,
+        help_text='Current transcription processing status'
+    )
+    transcription_text = models.TextField(blank=True, null=True, help_text='Transcribed text content')
+    uploaded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='uploaded_audio_files',
+        help_text='User who uploaded the file'
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-uploaded_at']
+    
+    def __str__(self):
+        return f'{self.original_filename} ({self.get_transcription_status_display()})'
+    
+    def get_file_url(self):
+        """Get the URL to access the file."""
+        if self.file:
+            return self.file.url
+        return None
+
+
 class ChatSession(models.Model):
     """Model to manage chat sessions with AI-generated tags."""
     
@@ -29,7 +78,7 @@ class ChatSession(models.Model):
     def update_activity(self):
         """Update last activity timestamp and message count."""
         self.last_activity = timezone.now()
-        self.message_count = self.messages.filter(is_deleted=False).count()
+        self.message_count = self.messages.count()
         self.save()
 
 
@@ -53,6 +102,14 @@ class ChatMessage(models.Model):
     model = models.CharField(max_length=100, blank=True, null=True)
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name='chat_messages', null=True, blank=True)
     tool_calls = models.JSONField(blank=True, null=True)
+    audio_file = models.ForeignKey(
+        AudioFile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='chat_messages',
+        help_text='Associated audio recording file'
+    )
     
     class Meta:
         ordering = ['-timestamp']
