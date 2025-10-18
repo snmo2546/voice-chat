@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import ChatSession, ChatMessage
+from .models import ChatSession, ChatMessage, AudioFile
 
 
 @admin.register(ChatSession)
@@ -27,18 +27,18 @@ class ChatSessionAdmin(admin.ModelAdmin):
 
 @admin.register(ChatMessage)
 class ChatMessageAdmin(admin.ModelAdmin):
-    list_display = ['id', 'role_badge', 'content_preview', 'model', 'user', 'session_link', 'timestamp']
+    list_display = ['id', 'role_badge', 'content_preview', 'model', 'user', 'audio_indicator', 'session_link', 'timestamp']
     list_filter = ['role', 'timestamp', 'model', 'user']
     search_fields = ['content', 'session__session_id', 'user__username', 'model']
     readonly_fields = ['timestamp']
     ordering = ['-timestamp']
-    
+
     fieldsets = (
         ('Message Information', {
             'fields': ('role', 'content', 'model')
         }),
         ('Relationships', {
-            'fields': ('session', 'user')
+            'fields': ('session', 'user', 'audio_file')
         }),
         ('Tool Calls', {
             'fields': ('tool_calls',),
@@ -82,3 +82,68 @@ class ChatMessageAdmin(admin.ModelAdmin):
             return format_html('<a href="{}">{}</a>', url, session_id_short)
         return format_html('<span style="color: #999;">No Session</span>')
     session_link.short_description = 'Session'
+
+    def audio_indicator(self, obj):
+        """Display audio file indicator with link."""
+        if obj.audio_file:
+            url = f'/admin/chat/audiofile/{obj.audio_file.id}/change/'
+            return format_html('<a href="{}" title="{}">🎤 Audio</a>', url, obj.audio_file.original_filename)
+        return format_html('<span style="color: #999;">-</span>')
+    audio_indicator.short_description = 'Audio'
+
+
+@admin.register(AudioFile)
+class AudioFileAdmin(admin.ModelAdmin):
+    list_display = ['id', 'original_filename', 'file_size_display', 'duration_display', 'status_badge', 'uploaded_by', 'uploaded_at']
+    list_filter = ['transcription_status', 'mime_type', 'uploaded_at', 'uploaded_by']
+    search_fields = ['original_filename', 'transcription_text', 'uploaded_by__username']
+    readonly_fields = ['uploaded_at', 'file_size', 'mime_type', 'original_filename']
+    ordering = ['-uploaded_at']
+
+    fieldsets = (
+        ('File Information', {
+            'fields': ('file', 'original_filename', 'file_size', 'mime_type', 'duration')
+        }),
+        ('Transcription', {
+            'fields': ('transcription_status', 'transcription_text')
+        }),
+        ('Metadata', {
+            'fields': ('uploaded_by', 'uploaded_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def status_badge(self, obj):
+        """Display transcription status with color coding."""
+        colors = {
+            'pending': '#757575',      # Gray
+            'transcribing': '#2196F3', # Blue
+            'completed': '#4CAF50',    # Green
+            'failed': '#F44336',       # Red
+        }
+        color = colors.get(obj.transcription_status, '#757575')
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 8px; border-radius: 3px; font-weight: bold;">{}</span>',
+            color,
+            obj.get_transcription_status_display()
+        )
+    status_badge.short_description = 'Status'
+
+    def file_size_display(self, obj):
+        """Display file size in human-readable format."""
+        size = obj.file_size
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size < 1024.0:
+                return f'{size:.1f} {unit}'
+            size /= 1024.0
+        return f'{size:.1f} TB'
+    file_size_display.short_description = 'File Size'
+
+    def duration_display(self, obj):
+        """Display duration in human-readable format."""
+        if obj.duration:
+            minutes = int(obj.duration // 60)
+            seconds = int(obj.duration % 60)
+            return f'{minutes}:{seconds:02d}'
+        return '-'
+    duration_display.short_description = 'Duration'
