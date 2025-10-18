@@ -136,10 +136,11 @@ class VoiceChat {
     }
 
     async handleAudioRecorded(audioBlob) {
-        // Show loading indicator
-        const loadingId = this.addMessage('assistant', '🎤 Transcribing your message...');
+        // Phase 1: Transcription
+        const transcribingId = this.addMessage('assistant', '🎤 Transcribing...');
 
         try {
+            // Step 1: Upload and transcribe
             const formData = new FormData();
             formData.append('recording', audioBlob, `recording_${Date.now()}.webm`);
 
@@ -148,7 +149,7 @@ class VoiceChat {
                 formData.append('session_id', this.sessionId);
             }
 
-            const response = await fetch('/api/chat/upload-recording/', {
+            const uploadResponse = await fetch('/api/chat/upload-recording/', {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': this.getCsrfToken(),
@@ -156,39 +157,75 @@ class VoiceChat {
                 body: formData,
             });
 
-            const result = await response.json();
+            const uploadResult = await uploadResponse.json();
 
-            // Remove loading indicator
-            this.removeMessage(loadingId);
+            // Remove transcribing indicator
+            this.removeMessage(transcribingId);
 
-            if (result.success && result.user_message && result.assistant_message) {
-                // Store the session_id for future requests
-                if (result.session_id) {
-                    this.sessionId = result.session_id;
+            if (!uploadResult.success) {
+                console.error('Upload/transcription failed:', uploadResult.message);
+                this.addMessage('assistant', `Error: ${uploadResult.message}`);
+                return;
+            }
+
+            // Store session_id
+            if (uploadResult.session_id) {
+                this.sessionId = uploadResult.session_id;
+            }
+
+            // Display transcribed user message
+            this.addMessage('user', uploadResult.user_message.content);
+
+            console.log('Transcription completed:', {
+                transcription: uploadResult.transcription,
+                session_id: uploadResult.session_id
+            });
+
+            // Phase 2: AI Response
+            const thinkingId = this.addMessage('assistant', '💭 AI is thinking...');
+
+            try {
+                // Step 2: Get AI response
+                const aiResponse = await fetch('/api/chat/send-message/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.getCsrfToken()
+                    },
+                    body: JSON.stringify({
+                        session_id: this.sessionId,
+                        message_id: uploadResult.user_message.id
+                    })
+                });
+
+                const aiResult = await aiResponse.json();
+
+                // Remove thinking indicator
+                this.removeMessage(thinkingId);
+
+                if (aiResult.success) {
+                    // Display AI response
+                    this.addMessage('assistant', aiResult.assistant_message.content);
+                    console.log('AI response received');
+                } else {
+                    console.error('AI response failed:', aiResult.message);
+                    this.addMessage('assistant', `Error: ${aiResult.message}`);
                 }
 
-                // Display transcribed user message
-                this.addMessage('user', result.user_message.content);
-
-                // Display AI response
-                this.addMessage('assistant', result.assistant_message.content);
-
-                console.log('Voice message processed:', {
-                    transcription: result.transcription,
-                    session_id: result.session_id
-                });
-            } else {
-                console.error('Processing failed:', result.message);
-                this.addMessage('assistant', `Error: ${result.message}`);
+            } catch (error) {
+                console.error('Error getting AI response:', error);
+                this.removeMessage(thinkingId);
+                this.addMessage('assistant', 'Failed to get AI response. Please try again.');
             }
+
         } catch (error) {
             console.error('Error processing voice message:', error);
-            this.removeMessage(loadingId);
+            this.removeMessage(transcribingId);
             this.addMessage('assistant', 'Failed to process voice message. Please try again.');
         }
     }
 
-    sendMessage() {
+    async sendMessage() {
         const message = this.messageInput.value.trim();
         if (!message) return;
 
@@ -199,10 +236,61 @@ class VoiceChat {
         this.messageInput.value = '';
         this.messageInput.style.height = 'auto';
 
-        // Simulate AI response (replace with actual API call)
-        setTimeout(() => {
-            this.addMessage('assistant', 'This is a demo response. AI integration coming soon!');
-        }, 1000);
+        // Show AI thinking indicator
+        const thinkingId = this.addMessage('assistant', '💭 AI is thinking...');
+
+        try {
+            // Generate session_id if we don't have one
+            if (!this.sessionId) {
+                this.sessionId = this.generateSessionId();
+            }
+
+            // Call send-message API
+            const response = await fetch('/api/chat/send-message/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken()
+                },
+                body: JSON.stringify({
+                    session_id: this.sessionId,
+                    content: message
+                })
+            });
+
+            const result = await response.json();
+
+            // Remove thinking indicator
+            this.removeMessage(thinkingId);
+
+            if (result.success) {
+                // Update session_id if it was created on the backend
+                if (result.session_id) {
+                    this.sessionId = result.session_id;
+                }
+
+                // Display AI response
+                this.addMessage('assistant', result.assistant_message.content);
+                console.log('AI response received for text message');
+            } else {
+                console.error('AI response failed:', result.message);
+                this.addMessage('assistant', `Error: ${result.message}`);
+            }
+
+        } catch (error) {
+            console.error('Error sending message:', error);
+            this.removeMessage(thinkingId);
+            this.addMessage('assistant', 'Failed to send message. Please try again.');
+        }
+    }
+
+    generateSessionId() {
+        // Generate a simple UUID v4
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
     }
 
     addMessage(role, content) {
