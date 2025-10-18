@@ -1,22 +1,51 @@
 from rest_framework import serializers
 import os
 from django.utils import timezone
-from django.conf import settings
+from .models import ChatMessage, AudioFile
 
 
-class VoiceFileInfoSerializer(serializers.Serializer):
-    file_path = serializers.CharField()
-    filename = serializers.CharField()
-    size = serializers.FloatField()
-    content_type = serializers.CharField()
-    url = serializers.CharField(required=False)
+class AudioFileSerializer(serializers.ModelSerializer):
+    """Serializer for AudioFile model."""
+    url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = AudioFile
+        fields = [
+            'id',
+            'original_filename',
+            'file_size',
+            'mime_type',
+            'duration',
+            'transcription_status',
+            'transcription_text',
+            'uploaded_at',
+            'url'
+        ]
+        read_only_fields = ['id', 'uploaded_at']
+    
+    def get_url(self, obj):
+        """Get the URL to access the file."""
+        return obj.get_file_url()
+
+
+class ChatMessageSerializer(serializers.ModelSerializer):
+    """Serializer for ChatMessage model."""
+    audio_file = AudioFileSerializer(read_only=True)
+    
+    class Meta:
+        model = ChatMessage
+        fields = ['id', 'role', 'content', 'timestamp', 'model', 'audio_file']
+        read_only_fields = ['id', 'timestamp']
 
 
 class VoiceRecordingResponseSerializer(serializers.Serializer):
     """Serializer for voice recording upload response."""
     success = serializers.BooleanField()
     message = serializers.CharField()
-    data = VoiceFileInfoSerializer()
+    transcription = serializers.CharField(required=False)
+    session_id = serializers.CharField(required=False)
+    user_message = ChatMessageSerializer(required=False)
+    assistant_message = ChatMessageSerializer(required=False)
 
 
 class VoiceRecordingRequestSerializer(serializers.Serializer):
@@ -40,27 +69,31 @@ class VoiceRecordingRequestSerializer(serializers.Serializer):
         return value
     
     def save(self, user):
-        """Save the uploaded recording and return the file path."""
+        """Save the uploaded recording and create an AudioFile instance."""
         recording = self.validated_data['recording']
-        session_id = self.validated_data.get('session_id')
+        
+        audio_file = AudioFile(
+            original_filename=recording.name,
+            file_size=recording.size,
+            mime_type=recording.content_type or 'audio/unknown',
+            uploaded_by=user if hasattr(user, 'pk') else None,
+            transcription_status=AudioFile.PENDING
+        )
         
         timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
         ext = os.path.splitext(recording.name)[1]
-        filename = f'recording_{timestamp}_{user.id}{ext}'
+        user_id = user.id if hasattr(user, 'id') else 'anonymous'
+        filename = f'recording_{timestamp}_{user_id}{ext}'
         
-        file_path = f'recordings/{filename}'
-        
-        full_path = os.path.join(settings.MEDIA_ROOT, 'recordings', filename)
-        
-        os.makedirs(os.path.dirname(full_path), exist_ok=True)
-        
-        with open(full_path, 'wb+') as destination:
-            for chunk in recording.chunks():
-                destination.write(chunk)
-        
-        return {
-            'file_path': file_path,
-            'filename': filename,
-            'size': recording.size,
-            'content_type': recording.content_type,
-        }
+        try:
+            audio_file.file.save(filename, recording, save=True)
+            return audio_file
+        except (IOError, OSError) as e:
+            # Handle file system errors (disk full, permissions, etc.)
+            raise serializers.ValidationError(
+                f'Failed to save audio file: {str(e)}'
+            )
+        except Exception as e:
+            raise serializers.ValidationError(
+                f'Unexpected error saving audio file: {str(e)}'
+            )
