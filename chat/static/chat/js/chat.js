@@ -15,6 +15,7 @@ class VoiceChat {
         this.audioChunks = [];
         this.recordingStartTime = null;
         this.recordingInterval = null;
+        this.sessionId = null;  // Track current chat session
 
         this.initializeEventListeners();
         this.checkMicrophoneSupport();
@@ -135,12 +136,17 @@ class VoiceChat {
     }
 
     async handleAudioRecorded(audioBlob) {
-        // Show user message
-        this.addMessage('user', `[Voice message recorded - ${(audioBlob.size / 1024).toFixed(1)} KB]`);
+        // Show loading indicator
+        const loadingId = this.addMessage('assistant', '🎤 Transcribing your message...');
 
         try {
             const formData = new FormData();
             formData.append('recording', audioBlob, `recording_${Date.now()}.webm`);
+
+            // Include session_id if we have one
+            if (this.sessionId) {
+                formData.append('session_id', this.sessionId);
+            }
 
             const response = await fetch('/api/chat/upload-recording/', {
                 method: 'POST',
@@ -152,21 +158,33 @@ class VoiceChat {
 
             const result = await response.json();
 
-            if (result.success) {
-                console.log('Recording uploaded successfully:', result.data);
+            // Remove loading indicator
+            this.removeMessage(loadingId);
 
-                // Show assistant response with upload confirmation
-                this.addMessage('assistant', `Voice message uploaded successfully! File: ${result.data.filename}`);
+            if (result.success && result.user_message && result.assistant_message) {
+                // Store the session_id for future requests
+                if (result.session_id) {
+                    this.sessionId = result.session_id;
+                }
 
-                // TODO: Send the file URL to speech-to-text API for transcription
-                // For now, we just confirm the upload
+                // Display transcribed user message
+                this.addMessage('user', result.user_message.content);
+
+                // Display AI response
+                this.addMessage('assistant', result.assistant_message.content);
+
+                console.log('Voice message processed:', {
+                    transcription: result.transcription,
+                    session_id: result.session_id
+                });
             } else {
-                console.error('Upload failed:', result.message);
-                this.addMessage('assistant', `Error uploading recording: ${result.message}`);
+                console.error('Processing failed:', result.message);
+                this.addMessage('assistant', `Error: ${result.message}`);
             }
         } catch (error) {
-            console.error('Error uploading recording:', error);
-            this.addMessage('assistant', 'Failed to upload voice message. Please try again.');
+            console.error('Error processing voice message:', error);
+            this.removeMessage(loadingId);
+            this.addMessage('assistant', 'Failed to process voice message. Please try again.');
         }
     }
 
@@ -195,6 +213,8 @@ class VoiceChat {
         }
 
         const messageDiv = document.createElement('div');
+        const messageId = `msg-${Date.now()}-${Math.random()}`;
+        messageDiv.id = messageId;
         messageDiv.className = `message ${role}`;
 
         const avatarDiv = document.createElement('div');
@@ -220,6 +240,15 @@ class VoiceChat {
 
         // Scroll to bottom
         this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+
+        return messageId;
+    }
+
+    removeMessage(messageId) {
+        const messageElement = document.getElementById(messageId);
+        if (messageElement) {
+            messageElement.remove();
+        }
     }
 
     createNewChat() {
@@ -234,6 +263,9 @@ class VoiceChat {
         // Clear input
         this.messageInput.value = '';
         this.messageInput.style.height = 'auto';
+
+        // Clear session ID to start a new conversation
+        this.sessionId = null;
 
         console.log('New chat created');
     }
