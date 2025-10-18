@@ -80,7 +80,8 @@ class LocalLLMService:
         }
         
         try:
-            response = requests.post(endpoint, json=payload, timeout=60)
+            timeout = getattr(settings, 'LOCAL_LLM_TIMEOUT', 120)
+            response = requests.post(endpoint, json=payload, timeout=timeout)
             response.raise_for_status()
             
             result = response.json()

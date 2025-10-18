@@ -146,4 +146,5 @@ WHISPER_MODEL_SIZE = 'base'
 
 # Local LLM Settings (Ollama)
 LOCAL_LLM_ENDPOINT = 'http://localhost:11434/api/chat'
-LOCAL_LLM_MODEL = 'gpt-oss:20b'
+LOCAL_LLM_MODEL = 'deepseek-r1:8b'
+LOCAL_LLM_TIMEOUT = 120  # Request timeout in seconds
