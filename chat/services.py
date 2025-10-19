@@ -75,7 +75,20 @@ class LocalLLMService:
         endpoint = getattr(settings, 'LOCAL_LLM_ENDPOINT', 'http://localhost:11434/api/chat')
         model_name = getattr(settings, 'LOCAL_LLM_MODEL', 'gpt-oss')
         
-        messages = conversation_history or []
+        system_prompt = {
+            'role': 'system',
+            'content': (
+                'You are a helpful AI assistant. Follow these language rules strictly:\n'
+                '- If the user writes in Chinese, respond ONLY in Chinese\n'
+                '- If the user writes in English, respond ONLY in English\n'
+                '- Never mix languages in a single response\n'
+                '- Match the user\'s language exactly'
+            )
+        }
+        
+        messages = [system_prompt]
+        if conversation_history:
+            messages.extend(conversation_history)
         messages.append({'role': 'user', 'content': prompt})
         
         payload = {
