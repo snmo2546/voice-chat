@@ -177,12 +177,13 @@ class CloneTTSService:
     ) -> Dict[str, any]:
         """
         Generate speech audio from text using voice cloning.
-        
+        Auto-detects language (Chinese/English) and selects appropriate language.
+
         Args:
             text: The text to convert to speech
             voice_id: Voice profile identifier (not used directly, but for tracking)
             speaker_wav: Path to reference audio file for voice cloning (optional)
-        
+
         Returns:
             Dictionary with generation results:
             {
@@ -197,7 +198,9 @@ class CloneTTSService:
             model = cls.get_model()
             
             output_format = getattr(settings, 'CLONETTS_OUTPUT_FORMAT', 'wav')
-            language = getattr(settings, 'CLONETTS_LANGUAGE', 'en')
+            
+            detected_lang = detect_language(text)
+            print(f'Detected language: {detected_lang} for text: "{text[:50]}..."')
             
             if not speaker_wav or not os.path.exists(speaker_wav):
                 speaker_wav = getattr(settings, 'CLONETTS_DEFAULT_SPEAKER_WAV', None)
@@ -211,12 +214,12 @@ class CloneTTSService:
             with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{output_format}') as tmp_file:
                 output_path = tmp_file.name
             
-            print(f'Generating TTS for text: "{text[:50]}..." using voice: {speaker_wav}')
+            print(f'Generating Coqui TTS for text: "{text[:50]}..." using voice: {speaker_wav} with language: {detected_lang}')
             model.tts_to_file(
                 text=text,
                 file_path=output_path,
                 speaker_wav=speaker_wav,
-                language=language
+                language=detected_lang
             )
             
             with open(output_path, 'rb') as f:

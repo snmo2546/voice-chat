@@ -60,7 +60,6 @@ The application uses a `.env` file for configuration. Key variables:
 - **Coqui TTS** (optional, for voice cloning):
   - `CLONETTS_MODEL_NAME` - TTS model name
   - `CLONETTS_OUTPUT_FORMAT` - Audio output format (wav/mp3)
-  - `CLONETTS_LANGUAGE` - TTS language code
 
 See `.env.example` for a complete template.
 
@@ -329,7 +328,6 @@ WHISPER_MODEL_SIZE = 'base'  # tiny, base, small, medium, large
 # TTS Settings (Coqui TTS with XTTS v2)
 CLONETTS_MODEL_NAME = 'tts_models/multilingual/multi-dataset/xtts_v2'
 CLONETTS_OUTPUT_FORMAT = 'wav'  # Options: wav, mp3
-CLONETTS_LANGUAGE = 'en'  # Language code
 CLONETTS_DEFAULT_SPEAKER_WAV = BASE_DIR / 'media' / 'voice_profiles' / 'default_voice.wav'
 ```
 
