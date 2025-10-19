@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import ChatSession, ChatMessage, AudioFile
+from .models import ChatSession, ChatMessage, AudioFile, VoiceProfile, TTSAudioFile
 
 
 @admin.register(ChatSession)
@@ -32,7 +32,7 @@ class ChatMessageAdmin(admin.ModelAdmin):
     search_fields = ['content', 'session__session_id', 'user__username', 'model']
     readonly_fields = ['timestamp']
     ordering = ['-timestamp']
-
+    
     fieldsets = (
         ('Message Information', {
             'fields': ('role', 'content', 'model')
@@ -82,7 +82,7 @@ class ChatMessageAdmin(admin.ModelAdmin):
             return format_html('<a href="{}">{}</a>', url, session_id_short)
         return format_html('<span style="color: #999;">No Session</span>')
     session_link.short_description = 'Session'
-
+    
     def audio_indicator(self, obj):
         """Display audio file indicator with link."""
         if obj.audio_file:
@@ -99,7 +99,7 @@ class AudioFileAdmin(admin.ModelAdmin):
     search_fields = ['original_filename', 'transcription_text', 'uploaded_by__username']
     readonly_fields = ['uploaded_at', 'file_size', 'mime_type', 'original_filename']
     ordering = ['-uploaded_at']
-
+    
     fieldsets = (
         ('File Information', {
             'fields': ('file', 'original_filename', 'file_size', 'mime_type', 'duration')
@@ -112,7 +112,7 @@ class AudioFileAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-
+    
     def status_badge(self, obj):
         """Display transcription status with color coding."""
         colors = {
@@ -128,7 +128,7 @@ class AudioFileAdmin(admin.ModelAdmin):
             obj.get_transcription_status_display()
         )
     status_badge.short_description = 'Status'
-
+    
     def file_size_display(self, obj):
         """Display file size in human-readable format."""
         size = obj.file_size
@@ -138,7 +138,7 @@ class AudioFileAdmin(admin.ModelAdmin):
             size /= 1024.0
         return f'{size:.1f} TB'
     file_size_display.short_description = 'File Size'
-
+    
     def duration_display(self, obj):
         """Display duration in human-readable format."""
         if obj.duration:
@@ -147,3 +147,116 @@ class AudioFileAdmin(admin.ModelAdmin):
             return f'{minutes}:{seconds:02d}'
         return '-'
     duration_display.short_description = 'Duration'
+
+
+@admin.register(VoiceProfile)
+class VoiceProfileAdmin(admin.ModelAdmin):
+    list_display = ['id', 'name', 'voice_id_short', 'default_badge', 'user', 'has_audio', 'created_at']
+    list_filter = ['is_default', 'created_at', 'user']
+    search_fields = ['name', 'voice_id', 'user__username']
+    readonly_fields = ['voice_id', 'created_at']
+    ordering = ['-is_default', '-created_at']
+    
+    fieldsets = (
+        ('Voice Information', {
+            'fields': ('name', 'voice_id', 'is_default')
+        }),
+        ('Audio Reference', {
+            'fields': ('reference_audio',)
+        }),
+        ('Ownership', {
+            'fields': ('user',)
+        }),
+        ('Metadata', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def voice_id_short(self, obj):
+        """Display shortened voice ID."""
+        if len(obj.voice_id) > 16:
+            return f'{obj.voice_id[:16]}...'
+        return obj.voice_id
+    voice_id_short.short_description = 'Voice ID'
+    
+    def default_badge(self, obj):
+        """Display default status badge."""
+        if obj.is_default:
+            return format_html(
+                '<span style="background-color: #4CAF50; color: white; padding: 3px 8px; border-radius: 3px; font-weight: bold;">DEFAULT</span>'
+            )
+        return format_html('<span style="color: #999;">-</span>')
+    default_badge.short_description = 'Default'
+    
+    def has_audio(self, obj):
+        """Indicator for reference audio."""
+        if obj.reference_audio:
+            return format_html('✓ <a href="{}">Listen</a>', obj.reference_audio.url)
+        return format_html('<span style="color: #999;">No audio</span>')
+    has_audio.short_description = 'Reference Audio'
+
+
+@admin.register(TTSAudioFile)
+class TTSAudioFileAdmin(admin.ModelAdmin):
+    list_display = ['id', 'message_link', 'voice_name', 'file_size_display', 'duration_display', 'generation_time_display', 'generated_at']
+    list_filter = ['generated_at', 'voice_profile']
+    search_fields = ['message__content', 'voice_profile__name']
+    readonly_fields = ['file_size', 'mime_type', 'generation_time', 'generated_at']
+    ordering = ['-generated_at']
+    
+    fieldsets = (
+        ('TTS Information', {
+            'fields': ('message', 'voice_profile')
+        }),
+        ('Generated File', {
+            'fields': ('file', 'file_size', 'duration', 'mime_type')
+        }),
+        ('Performance', {
+            'fields': ('generation_time',)
+        }),
+        ('Metadata', {
+            'fields': ('generated_at',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def message_link(self, obj):
+        """Link to the associated message."""
+        url = f'/admin/chat/chatmessage/{obj.message.id}/change/'
+        content_preview = obj.message.content[:40] + '...' if len(obj.message.content) > 40 else obj.message.content
+        return format_html('<a href="{}">{}</a>', url, content_preview)
+    message_link.short_description = 'Message'
+    
+    def voice_name(self, obj):
+        """Display voice profile name."""
+        if obj.voice_profile:
+            return obj.voice_profile.name
+        return format_html('<span style="color: #999;">Unknown</span>')
+    voice_name.short_description = 'Voice'
+    
+    def file_size_display(self, obj):
+        """Display file size in human-readable format."""
+        size = obj.file_size
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size < 1024.0:
+                return f'{size:.1f} {unit}'
+            size /= 1024.0
+        return f'{size:.1f} TB'
+    file_size_display.short_description = 'File Size'
+    
+    def duration_display(self, obj):
+        """Display duration in human-readable format."""
+        if obj.duration:
+            minutes = int(obj.duration // 60)
+            seconds = int(obj.duration % 60)
+            return f'{minutes}:{seconds:02d}'
+        return '-'
+    duration_display.short_description = 'Duration'
+    
+    def generation_time_display(self, obj):
+        """Display generation time."""
+        if obj.generation_time:
+            return f'{obj.generation_time:.2f}s'
+        return '-'
+    generation_time_display.short_description = 'Generation Time'

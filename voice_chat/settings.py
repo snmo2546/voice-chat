@@ -153,3 +153,19 @@ WHISPER_MODEL_SIZE = os.getenv('WHISPER_MODEL_SIZE', 'base')
 LOCAL_LLM_ENDPOINT = os.getenv('LOCAL_LLM_ENDPOINT', 'http://localhost:11434/api/chat')
 LOCAL_LLM_MODEL = os.getenv('LOCAL_LLM_MODEL', 'deepseek-r1:8b')
 LOCAL_LLM_TIMEOUT = int(os.getenv('LOCAL_LLM_TIMEOUT', '120'))  # Request timeout in seconds
+
+# TTS Backend Selection
+# Options: 'piper' (fast, CPU-friendly) or 'coqui' (voice cloning, GPU-optimized)
+TTS_BACKEND = os.getenv('TTS_BACKEND', 'piper')
+
+# Piper TTS Settings (fast, local, CPU-optimized)
+PIPER_DEFAULT_MODEL_PATH = os.getenv('PIPER_DEFAULT_MODEL_PATH', str(BASE_DIR / 'media' / 'piper_voices' / 'zh_CN-huayan-medium.onnx'))
+PIPER_DEFAULT_MODEL_CONFIG = os.getenv('PIPER_DEFAULT_MODEL_CONFIG', str(BASE_DIR / 'media' / 'piper_voices' / 'zh_CN-huayan-medium.json'))
+
+# TTS (Text-to-Speech) Settings - Coqui TTS with XTTS v2
+CLONETTS_MODEL_NAME = os.getenv('CLONETTS_MODEL_NAME', 'tts_models/multilingual/multi-dataset/xtts_v2')
+CLONETTS_OUTPUT_FORMAT = os.getenv('CLONETTS_OUTPUT_FORMAT', 'wav')  # Options: 'wav', 'mp3'
+CLONETTS_LANGUAGE = os.getenv('CLONETTS_LANGUAGE', 'en')  # Language code for TTS
+CLONETTS_DEFAULT_SPEAKER_WAV = BASE_DIR / 'media' / 'voice_profiles' / 'default_voice.wav'
+# Note: Place a default voice reference audio file at the path above, or upload via admin/API
+# The file should be 6-30 seconds of clean speech from the desired voice

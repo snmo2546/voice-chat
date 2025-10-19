@@ -1,6 +1,82 @@
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
+import uuid
+
+
+class VoiceProfile(models.Model):
+    """Model to manage voice profiles for TTS (text-to-speech) - supports both Piper and Coqui backends."""
+    
+    TTS_BACKEND_CHOICES = [
+        ('piper', 'Piper TTS'),
+        ('coqui', 'Coqui TTS'),
+    ]
+    
+    voice_id = models.CharField(max_length=100, unique=True, db_index=True, help_text='Unique identifier for the voice')
+    name = models.CharField(max_length=200, help_text='Display name for the voice (e.g., "Default AI Voice", "My Voice")')
+    
+    # TTS backend selection
+    tts_backend = models.CharField(
+        max_length=20,
+        choices=TTS_BACKEND_CHOICES,
+        default='piper',
+        help_text='TTS engine to use for this voice'
+    )
+    
+    # Coqui TTS fields (voice cloning)
+    reference_audio = models.FileField(
+        upload_to='voice_profiles/',
+        null=True,
+        blank=True,
+        help_text='Reference audio file for Coqui voice cloning'
+    )
+    
+    # Piper TTS fields (pre-trained models)
+    piper_model_file = models.FileField(
+        upload_to='piper_voices/',
+        null=True,
+        blank=True,
+        help_text='Piper ONNX model file (.onnx)'
+    )
+    piper_config_file = models.FileField(
+        upload_to='piper_voices/',
+        null=True,
+        blank=True,
+        help_text='Piper model config file (.onnx.json)'
+    )
+    
+    is_default = models.BooleanField(default=False, help_text='Whether this is the default system voice')
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='voice_profiles',
+        help_text='User who owns this voice profile (null for system default)'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-is_default', '-created_at']
+    
+    def __str__(self):
+        default_label = ' (Default)' if self.is_default else ''
+        backend_label = f' [{self.get_tts_backend_display()}]'
+        return f'{self.name}{default_label}{backend_label}'
+    
+    def save(self, *args, **kwargs):
+        # Auto-generate voice_id if not set
+        if not self.voice_id:
+            self.voice_id = str(uuid.uuid4())
+        
+        # Ensure only one default voice exists per user
+        if self.is_default:
+            if self.user:
+                VoiceProfile.objects.filter(user=self.user, is_default=True).update(is_default=False)
+            else:
+                VoiceProfile.objects.filter(user__isnull=True, is_default=True).update(is_default=False)
+        
+        super().save(*args, **kwargs)
 
 
 class AudioFile(models.Model):
@@ -138,3 +214,40 @@ class ChatMessage(models.Model):
                     result['name'] = 'unknown_function'
         
         return result
+
+
+class TTSAudioFile(models.Model):
+    """Model to store TTS-generated audio files for AI responses."""
+    
+    file = models.FileField(upload_to='tts_responses/', help_text='Generated TTS audio file')
+    message = models.OneToOneField(
+        ChatMessage,
+        on_delete=models.CASCADE,
+        related_name='tts_audio',
+        help_text='The chat message this audio is for'
+    )
+    voice_profile = models.ForeignKey(
+        VoiceProfile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tts_audio_files',
+        help_text='Voice profile used for generation'
+    )
+    file_size = models.IntegerField(help_text='File size in bytes')
+    duration = models.FloatField(null=True, blank=True, help_text='Duration in seconds')
+    mime_type = models.CharField(max_length=50, default='audio/wav', help_text='MIME type of generated audio')
+    generation_time = models.FloatField(null=True, blank=True, help_text='Time taken to generate (seconds)')
+    generated_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-generated_at']
+    
+    def __str__(self):
+        return f'TTS for message {self.message.id} (voice: {self.voice_profile.name if self.voice_profile else "unknown"})'
+    
+    def get_file_url(self):
+        """Get the URL to access the TTS audio file."""
+        if self.file:
+            return self.file.url
+        return None
