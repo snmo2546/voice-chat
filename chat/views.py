@@ -227,29 +227,15 @@ class SendMessageView(APIView):
                             speaker_wav=speaker_wav
                         )
                     else:
-                        tts_backend = voice_profile.tts_backend if voice_profile else getattr(settings, 'TTS_BACKEND', 'coqui')
+                        speaker_wav = None
+                        if voice_profile and voice_profile.reference_audio:
+                            speaker_wav = voice_profile.reference_audio.path
                         
-                        if tts_backend == 'piper':
-                            # Piper TTS - use model file if available
-                            speaker_wav = None
-                            if voice_profile and voice_profile.piper_model_file:
-                                speaker_wav = voice_profile.piper_model_file.path
-                            
-                            tts_result = PiperTTSService.synthesize_speech(
-                                text=llm_response,
-                                voice_id=voice_profile.voice_id if voice_profile else 'default',
-                                speaker_wav=speaker_wav
-                            )
-                        else:
-                            speaker_wav = None
-                            if voice_profile and voice_profile.reference_audio:
-                                speaker_wav = voice_profile.reference_audio.path
-                            
-                            tts_result = CloneTTSService.synthesize_speech(
-                                text=llm_response,
-                                voice_id=voice_profile.voice_id if voice_profile else 'default',
-                                speaker_wav=speaker_wav
-                            )
+                        tts_result = CloneTTSService.synthesize_speech(
+                            text=llm_response,
+                            voice_id=voice_profile.voice_id if voice_profile else 'default',
+                            speaker_wav=speaker_wav
+                        )
                     
                     from django.core.files.base import ContentFile
                     timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
