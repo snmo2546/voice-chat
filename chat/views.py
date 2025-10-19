@@ -1,20 +1,23 @@
 import uuid
 from django.shortcuts import render
 from django.conf import settings
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 from rest_framework.parsers import MultiPartParser, FormParser
-from .models import ChatSession, ChatMessage, AudioFile
-from .services import WhisperService, LocalLLMService
+from .models import ChatSession, ChatMessage, AudioFile, VoiceProfile, TTSAudioFile
+from .services import WhisperService, LocalLLMService, CloneTTSService, PiperTTSService
 from .serializers import (
     VoiceRecordingRequestSerializer,
     VoiceRecordingResponseSerializer,
     ChatMessageSerializer,
     SendMessageRequestSerializer,
-    SendMessageResponseSerializer
+    SendMessageResponseSerializer,
+    VoiceProfileSerializer,
+    VoiceProfileUploadSerializer
 )
 
 
@@ -133,6 +136,7 @@ class SendMessageView(APIView):
                 session_id = input_serializer.validated_data['session_id']
                 message_id = input_serializer.validated_data.get('message_id')
                 content = input_serializer.validated_data.get('content')
+                speed_mode = input_serializer.validated_data.get('speed_mode', 'fast')
                 
                 try:
                     session = ChatSession.objects.get(session_id=session_id)
@@ -198,6 +202,75 @@ class SendMessageView(APIView):
                     model=settings.LOCAL_LLM_MODEL
                 )
                 
+                try:
+                    voice_profile = None
+                    if request.user.is_authenticated:
+                        voice_profile = VoiceProfile.objects.filter(
+                            user=request.user,
+                            is_default=True
+                        ).first()
+                    
+                    if not voice_profile:
+                        voice_profile = VoiceProfile.objects.filter(
+                            user=None,
+                            is_default=True
+                        ).first()
+                    
+                    if speed_mode == 'fast':
+                        speaker_wav = None
+                        if voice_profile and voice_profile.piper_model_file:
+                            speaker_wav = voice_profile.piper_model_file.path
+                        
+                        tts_result = PiperTTSService.synthesize_speech(
+                            text=llm_response,
+                            voice_id=voice_profile.voice_id if voice_profile else 'default',
+                            speaker_wav=speaker_wav
+                        )
+                    else:
+                        tts_backend = voice_profile.tts_backend if voice_profile else getattr(settings, 'TTS_BACKEND', 'coqui')
+                        
+                        if tts_backend == 'piper':
+                            # Piper TTS - use model file if available
+                            speaker_wav = None
+                            if voice_profile and voice_profile.piper_model_file:
+                                speaker_wav = voice_profile.piper_model_file.path
+                            
+                            tts_result = PiperTTSService.synthesize_speech(
+                                text=llm_response,
+                                voice_id=voice_profile.voice_id if voice_profile else 'default',
+                                speaker_wav=speaker_wav
+                            )
+                        else:
+                            speaker_wav = None
+                            if voice_profile and voice_profile.reference_audio:
+                                speaker_wav = voice_profile.reference_audio.path
+                            
+                            tts_result = CloneTTSService.synthesize_speech(
+                                text=llm_response,
+                                voice_id=voice_profile.voice_id if voice_profile else 'default',
+                                speaker_wav=speaker_wav
+                            )
+                    
+                    from django.core.files.base import ContentFile
+                    timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+                    filename = f'tts_{assistant_message.id}_{timestamp}.wav'
+                    
+                    tts_audio = TTSAudioFile(
+                        message=assistant_message,
+                        voice_profile=voice_profile,
+                        file_size=tts_result['file_size'],
+                        mime_type=tts_result['mime_type'],
+                        generation_time=tts_result['generation_time']
+                    )
+                    tts_audio.file.save(filename, ContentFile(tts_result['audio_bytes']), save=True)
+                    
+                    print(f'TTS audio generated and saved for message {assistant_message.id}')
+                
+                except Exception as e:
+                    import traceback
+                    print(f'Warning: TTS generation failed for message {assistant_message.id}: {e}')
+                    traceback.print_exc()
+                
                 session.update_activity()
                 
                 assistant_msg_serializer = ChatMessageSerializer(assistant_message)
@@ -207,6 +280,7 @@ class SendMessageView(APIView):
                     'message': 'AI response generated successfully',
                     'session_id': session_id,
                     'assistant_message': assistant_msg_serializer.data,
+                    'speed_mode': speed_mode,
                 }, status=status.HTTP_200_OK)
             
             except Exception as e:
@@ -223,3 +297,90 @@ class SendMessageView(APIView):
             'message': 'Validation failed',
             'errors': input_serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class VoiceProfileUploadView(APIView):
+    """API view for uploading custom voice profiles."""
+    permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+    
+    @extend_schema(
+        summary="Upload a custom voice profile",
+        description="Upload a reference audio file to create a custom voice profile for TTS. The audio should be 6-30 seconds of clean speech.",
+        request=VoiceProfileUploadSerializer,
+        responses={
+            201: VoiceProfileSerializer,
+        },
+    )
+    def post(self, request):
+        input_serializer = VoiceProfileUploadSerializer(data=request.data)
+        
+        if input_serializer.is_valid():
+            try:
+                user = request.user if request.user.is_authenticated else type('obj', (object,), {'id': 'anonymous'})()
+                
+                voice_profile = input_serializer.save(user=user)
+                
+                output_serializer = VoiceProfileSerializer(voice_profile)
+                
+                return Response({
+                    'success': True,
+                    'message': 'Voice profile created successfully',
+                    'voice_profile': output_serializer.data,
+                }, status=status.HTTP_201_CREATED)
+            
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                return Response({
+                    'success': False,
+                    'message': 'Error creating voice profile',
+                    'error': str(e)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response({
+            'success': False,
+            'message': 'Validation failed',
+            'errors': input_serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class VoiceProfileListView(APIView):
+    """API view for listing available voice profiles."""
+    permission_classes = [AllowAny]
+    
+    @extend_schema(
+        summary="List available voice profiles",
+        description="Get a list of available voice profiles (system default + user's custom voices).",
+        responses={
+            200: VoiceProfileSerializer(many=True),
+        },
+    )
+    def get(self, request):
+        try:
+            # Get system default voices and user's custom voices
+            profiles = VoiceProfile.objects.filter(
+                user=None  # System default
+            )
+            
+            if request.user.is_authenticated:
+                # Include user's custom voices
+                user_profiles = VoiceProfile.objects.filter(user=request.user)
+                profiles = profiles | user_profiles
+            
+            serializer = VoiceProfileSerializer(profiles, many=True)
+            
+            return Response({
+                'success': True,
+                'count': profiles.count(),
+                'voice_profiles': serializer.data,
+            }, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({
+                'success': False,
+                'message': 'Error retrieving voice profiles',
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
