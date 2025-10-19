@@ -16,11 +16,98 @@
                 <h2>Chat Sessions</h2>
                 <button class="btn-new-chat" id="newChatBtn">+ New Chat</button>
             </div>
+
+            <!-- Voice Settings Section -->
+            <div class="voice-settings">
+                <h3>🎙️ Voice Settings</h3>
+                <button class="btn-voice-settings" id="voiceSettingsBtn">Manage Voices</button>
+            </div>
+
+            <!-- TTS Speed Mode Toggle -->
+            <div class="speed-mode-section">
+                <h3>⚡ TTS Speed</h3>
+                <div class="speed-mode-toggle" id="speedModeToggle">
+                    <button class="speed-mode-btn active" id="fastModeBtn" title="Fast mode: 0.5-1 second (Piper TTS)">
+                        🚀 Fast
+                    </button>
+                    <button class="speed-mode-btn" id="qualityModeBtn" title="Quality mode: 15-30 seconds (XTTS v2 with voice cloning)">
+                        💎 Quality
+                    </button>
+                </div>
+                <p class="speed-mode-description">Fast: <1s | Quality: 15-30s (clone)</p>
+            </div>
+
             <div class="sessions-list" id="sessionsList">
                 <!-- Sessions will be loaded here -->
                 <div class="session-item active">
                     <div class="session-title">New Chat</div>
                     <div class="session-meta">Just now · 0 messages</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Voice Settings Modal -->
+        <div class="modal" id="voiceSettingsModal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Voice Profile Settings</h2>
+                    <button class="modal-close" id="closeModalBtn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="voice-profiles-list" id="voiceProfilesList">
+                        <p class="loading-text">Loading voice profiles...</p>
+                    </div>
+
+                    <div class="upload-voice-section">
+                        <h3>Create Custom Voice</h3>
+                        <p class="help-text">Record or upload a 6-30 second audio sample of clear speech</p>
+
+                        <!-- Tab Buttons -->
+                        <div class="voice-tabs">
+                            <button type="button" class="tab-btn active" id="recordTab">🎙️ Record</button>
+                            <button type="button" class="tab-btn" id="uploadTab">📁 Upload File</button>
+                        </div>
+
+                        <!-- Record Voice Tab -->
+                        <div class="tab-content active" id="recordContent">
+                            <div class="voice-recorder">
+                                <p class="recorder-status" id="recorderStatus">Ready to record (6-30 seconds recommended)</p>
+                                <div class="recorder-controls">
+                                    <button type="button" class="btn-record" id="startVoiceRecordBtn">
+                                        <span class="record-icon">⏺</span> Start Recording
+                                    </button>
+                                    <button type="button" class="btn-stop-record" id="stopVoiceRecordBtn" style="display: none;">
+                                        <span class="stop-icon">⏹</span> Stop Recording
+                                    </button>
+                                </div>
+                                <div class="recording-timer" id="voiceRecordTimer" style="display: none;">
+                                    <span class="recording-pulse">🔴</span>
+                                    <span id="voiceRecordTime">0:00</span>
+                                </div>
+                                <audio id="voicePreview" controls style="display: none; width: 100%; margin-top: 10px;"></audio>
+                            </div>
+                            <form id="voiceRecordForm" style="display: none;">
+                                <input type="text" id="voiceNameRecord" placeholder="Voice name (e.g., 'My Voice')" required>
+                                <label>
+                                    <input type="checkbox" id="setAsDefaultRecord"> Set as default voice
+                                </label>
+                                <button type="submit" class="btn-upload">Save Voice Profile</button>
+                                <button type="button" class="btn-cancel" id="cancelRecordBtn">Cancel</button>
+                            </form>
+                        </div>
+
+                        <!-- Upload File Tab -->
+                        <div class="tab-content" id="uploadContent">
+                            <form id="voiceUploadForm">
+                                <input type="text" id="voiceName" placeholder="Voice name (e.g., 'My Voice')" required>
+                                <input type="file" id="voiceAudioFile" accept="audio/*" required>
+                                <label>
+                                    <input type="checkbox" id="setAsDefault"> Set as default voice
+                                </label>
+                                <button type="submit" class="btn-upload">Upload Voice</button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

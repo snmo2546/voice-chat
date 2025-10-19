@@ -210,6 +210,38 @@ body {
     margin-top: 4px;
 }
 
+/* TTS Audio Player Styles */
+.tts-audio-container {
+    margin-top: 12px;
+    padding: 10px;
+    background-color: #f0f0f0;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.tts-voice-label {
+    display: block;
+    font-size: 11px;
+    color: #666;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+.tts-audio-player {
+    width: 100%;
+    height: 32px;
+    outline: none;
+}
+
+.tts-audio-player::-webkit-media-controls-panel {
+    background-color: #ffffff;
+}
+
+.message.assistant .tts-audio-container {
+    background-color: #e8f4f8;
+    border-color: #c7e0eb;
+}
+
 /* Input Area */
 .input-area {
     padding: 20px 24px;
@@ -358,6 +390,380 @@ body {
     border-radius: 3px;
 }
 
+/* Voice Settings Section */
+.voice-settings {
+    padding: 16px 20px;
+    border-bottom: 1px solid #444654;
+}
+
+.voice-settings h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #fff;
+}
+
+.btn-voice-settings {
+    width: 100%;
+    padding: 10px;
+    background-color: #10a37f;
+    border: none;
+    color: #fff;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.btn-voice-settings:hover {
+    background-color: #0d8a6a;
+}
+
+/* TTS Speed Mode Section */
+.speed-mode-section {
+    padding: 16px 20px;
+    border-bottom: 1px solid #444654;
+}
+
+.speed-mode-section h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #fff;
+}
+
+.speed-mode-toggle {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.speed-mode-btn {
+    flex: 1;
+    padding: 10px 12px;
+    background-color: #40414f;
+    border: 2px solid #565869;
+    color: #ececf1;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.speed-mode-btn:hover {
+    background-color: #505161;
+    border-color: #6e6f84;
+}
+
+.speed-mode-btn.active {
+    background-color: #10a37f;
+    border-color: #10a37f;
+    color: #fff;
+}
+
+.speed-mode-btn.active:hover {
+    background-color: #0d8a6a;
+    border-color: #0d8a6a;
+}
+
+.speed-mode-description {
+    font-size: 11px;
+    color: #8e8ea0;
+    margin: 0;
+    text-align: center;
+}
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: #fff;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #e5e5e5;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 28px;
+    color: #999;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-close:hover {
+    color: #333;
+}
+
+.modal-body {
+    padding: 24px;
+}
+
+.voice-profiles-list {
+    margin-bottom: 30px;
+}
+
+.voice-profile-item {
+    padding: 14px;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.voice-profile-info {
+    flex: 1;
+}
+
+.voice-profile-name {
+    font-weight: 600;
+    font-size: 15px;
+    color: #333;
+    margin-bottom: 4px;
+}
+
+.voice-profile-meta {
+    font-size: 12px;
+    color: #666;
+}
+
+.voice-profile-badge {
+    background-color: #10a37f;
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 10px;
+}
+
+.upload-voice-section {
+    border-top: 1px solid #e5e5e5;
+    padding-top: 20px;
+}
+
+.upload-voice-section h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.help-text {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 16px;
+}
+
+#voiceUploadForm {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+#voiceUploadForm input[type="text"],
+#voiceUploadForm input[type="file"] {
+    padding: 10px 12px;
+    border: 1px solid #e5e5e5;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+#voiceUploadForm label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #333;
+}
+
+.btn-upload {
+    padding: 12px;
+    background-color: #5436da;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.btn-upload:hover {
+    background-color: #4229b8;
+}
+
+.loading-text {
+    text-align: center;
+    color: #666;
+    padding: 20px;
+}
+
+/* Voice Recording Tabs */
+.voice-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #e5e5e5;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 12px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: #666;
+    transition: all 0.2s;
+}
+
+.tab-btn:hover {
+    color: #333;
+    background-color: #f7f7f8;
+}
+
+.tab-btn.active {
+    color: #5436da;
+    border-bottom-color: #5436da;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Voice Recorder */
+.voice-recorder {
+    text-align: center;
+    padding: 20px;
+}
+
+.recorder-status {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 20px;
+}
+
+.recorder-controls {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 15px;
+}
+
+.btn-record,
+.btn-stop-record {
+    padding: 14px 24px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.btn-record {
+    background-color: #10a37f;
+    color: white;
+}
+
+.btn-record:hover {
+    background-color: #0d8a6a;
+}
+
+.btn-stop-record {
+    background-color: #ef4444;
+    color: white;
+}
+
+.btn-stop-record:hover {
+    background-color: #dc2626;
+}
+
+.recording-timer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #ef4444;
+    padding: 10px;
+}
+
+.recording-pulse {
+    animation: pulse 1.5s infinite;
+}
+
+.btn-cancel {
+    padding: 12px;
+    background-color: #6b7280;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s;
+    margin-left: 10px;
+}
+
+.btn-cancel:hover {
+    background-color: #4b5563;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .sidebar {
@@ -366,5 +772,9 @@ body {
 
     .message-content {
         max-width: 85%;
+    }
+
+    .modal-content {
+        width: 95%;
     }
 }
