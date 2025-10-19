@@ -11,21 +11,26 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from .env file
+load_dotenv(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-&vdp37uo*^#ag#qi1=8dy)2+6_zcc&h=f3&umtbc@%5u-e$*h8'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default-key-change-this')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 
 # Application definition
@@ -142,9 +147,9 @@ SPECTACULAR_SETTINGS = {
 
 # Whisper Speech-to-Text Settings
 # Model options: 'tiny', 'base', 'small', 'medium', 'large'
-WHISPER_MODEL_SIZE = 'base'
+WHISPER_MODEL_SIZE = os.getenv('WHISPER_MODEL_SIZE', 'base')
 
 # Local LLM Settings (Ollama)
-LOCAL_LLM_ENDPOINT = 'http://localhost:11434/api/chat'
-LOCAL_LLM_MODEL = 'deepseek-r1:8b'
-LOCAL_LLM_TIMEOUT = 120  # Request timeout in seconds
+LOCAL_LLM_ENDPOINT = os.getenv('LOCAL_LLM_ENDPOINT', 'http://localhost:11434/api/chat')
+LOCAL_LLM_MODEL = os.getenv('LOCAL_LLM_MODEL', 'deepseek-r1:8b')
+LOCAL_LLM_TIMEOUT = int(os.getenv('LOCAL_LLM_TIMEOUT', '120'))  # Request timeout in seconds

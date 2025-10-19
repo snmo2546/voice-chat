@@ -16,6 +16,11 @@ source .venv/bin/activate  # Linux/Mac
 # Install dependencies
 pip install -r requirements.txt
 
+# Configure environment variables
+# Copy .env.example to .env and update values
+cp .env.example .env
+# Edit .env and set your SECRET_KEY, DEBUG, ALLOWED_HOSTS, and model settings
+
 # Run database migrations
 python manage.py makemigrations
 python manage.py migrate
@@ -31,6 +36,23 @@ python manage.py runserver
 # - Admin Panel: http://localhost:8000/admin/
 # - Swagger API Docs: http://localhost:8000/api/docs/
 ```
+
+## Environment Variables
+
+The application uses a `.env` file for configuration. Key variables:
+
+**Django Settings:**
+- `SECRET_KEY` - Django secret key (required, keep secret!)
+- `DEBUG` - Debug mode (True/False)
+- `ALLOWED_HOSTS` - Comma-separated list of allowed hosts
+
+**AI Model Settings:**
+- `WHISPER_MODEL_SIZE` - Whisper model size (tiny/base/small/medium/large)
+- `LOCAL_LLM_ENDPOINT` - Ollama API endpoint
+- `LOCAL_LLM_MODEL` - LLM model name
+- `LOCAL_LLM_TIMEOUT` - Request timeout in seconds
+
+See `.env.example` for a complete template.
 
 ## Architecture Overview
 
