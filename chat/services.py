@@ -8,8 +8,31 @@ import time
 import os
 import io
 import wave
+import re
 from django.conf import settings
 from typing import List, Dict, Optional
+
+
+def detect_language(text: str) -> str:
+    """
+    Detect if text is primarily Chinese or English.
+    
+    Args:
+        text: Text to analyze
+    
+    Returns:
+        'zh' for Chinese, 'en' for English
+    """
+    chinese_chars = len(re.findall(r'[\u4e00-\u9fff]', text))
+    english_chars = len(re.findall(r'[a-zA-Z]', text))
+    
+    # If more than 30% of non-space characters are Chinese, consider it Chinese
+    total_chars = chinese_chars + english_chars
+    if total_chars == 0:
+        return 'en'
+    
+    chinese_ratio = chinese_chars / total_chars
+    return 'zh' if chinese_ratio > 0.3 else 'en'
 
 
 class WhisperService:
@@ -288,6 +311,7 @@ class PiperTTSService:
     ) -> Dict[str, any]:
         """
         Generate speech audio from text using Piper TTS.
+        Auto-detects language (Chinese/English) and selects appropriate model.
         
         Args:
             text: The text to convert to speech
@@ -311,14 +335,33 @@ class PiperTTSService:
                 model_path = speaker_wav
                 config_path = f"{model_path}.json"
             else:
-                model_path = getattr(settings, 'PIPER_DEFAULT_MODEL_PATH', None)
-                config_path = getattr(settings, 'PIPER_DEFAULT_MODEL_CONFIG', None)
+                detected_lang = detect_language(text)
+                print(f'Detected language: {detected_lang} for text: "{text[:50]}..."')
                 
-                if not model_path or not os.path.exists(model_path):
+                piper_models = getattr(settings, 'PIPER_MODELS', {})
+                if detected_lang not in piper_models:
                     raise ValueError(
-                        "No valid Piper model provided and no default model found. "
-                        "Please configure PIPER_DEFAULT_MODEL_PATH in settings or provide a model path."
+                        f"No Piper model configured for language '{detected_lang}'. "
+                        f"Please configure PIPER_{detected_lang.upper()}_MODEL_PATH and "
+                        f"PIPER_{detected_lang.upper()}_CONFIG_PATH in your .env file."
                     )
+                
+                model_config = piper_models[detected_lang]
+                model_path = model_config['model_path']
+                config_path = model_config['config_path']
+                
+                if not os.path.exists(model_path):
+                    raise FileNotFoundError(
+                        f"Piper model file not found for language '{detected_lang}': {model_path}\n"
+                        f"Please download the model from https://github.com/rhasspy/piper/releases"
+                    )
+                
+                if not os.path.exists(config_path):
+                    raise FileNotFoundError(
+                        f"Piper config file not found for language '{detected_lang}': {config_path}"
+                    )
+                
+                print(f'Using {detected_lang} model: {model_path}')
             
             voice = cls.get_voice(model_path, config_path)
             

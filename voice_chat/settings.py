@@ -159,8 +159,17 @@ LOCAL_LLM_TIMEOUT = int(os.getenv('LOCAL_LLM_TIMEOUT', '120'))  # Request timeou
 TTS_BACKEND = os.getenv('TTS_BACKEND', 'piper')
 
 # Piper TTS Settings (fast, local, CPU-optimized)
-PIPER_DEFAULT_MODEL_PATH = os.getenv('PIPER_DEFAULT_MODEL_PATH', str(BASE_DIR / 'media' / 'piper_voices' / 'zh_CN-huayan-medium.onnx'))
-PIPER_DEFAULT_MODEL_CONFIG = os.getenv('PIPER_DEFAULT_MODEL_CONFIG', str(BASE_DIR / 'media' / 'piper_voices' / 'zh_CN-huayan-medium.json'))
+# Multi-language Piper models (auto-selected based on detected language)
+PIPER_MODELS = {
+    'zh': {
+        'model_path': os.getenv('PIPER_ZH_MODEL_PATH', str(BASE_DIR / 'media' / 'piper_voices' / 'zh_CN-huayan-medium.onnx')),
+        'config_path': os.getenv('PIPER_ZH_CONFIG_PATH', str(BASE_DIR / 'media' / 'piper_voices' / 'zh_CN-huayan-medium.onnx.json')),
+    },
+    'en': {
+        'model_path': os.getenv('PIPER_EN_MODEL_PATH', str(BASE_DIR / 'media' / 'piper_voices' / 'en_US-lessac-medium.onnx')),
+        'config_path': os.getenv('PIPER_EN_CONFIG_PATH', str(BASE_DIR / 'media' / 'piper_voices' / 'en_US-lessac-medium.onnx.json')),
+    }
+}
 
 # TTS (Text-to-Speech) Settings - Coqui TTS with XTTS v2
 CLONETTS_MODEL_NAME = os.getenv('CLONETTS_MODEL_NAME', 'tts_models/multilingual/multi-dataset/xtts_v2')
