@@ -249,12 +249,13 @@ class VoiceChat {
                 this.sessionId = uploadResult.session_id;
             }
 
-            // Display transcribed user message
-            this.addMessage('user', uploadResult.user_message.content);
+            // Display transcribed user message with speech analysis
+            this.addMessage('user', uploadResult.user_message.content, null, uploadResult.speech_analysis);
 
             console.log('Transcription completed:', {
                 transcription: uploadResult.transcription,
-                session_id: uploadResult.session_id
+                session_id: uploadResult.session_id,
+                speech_analysis: uploadResult.speech_analysis
             });
 
             // Phase 2: AI Response
@@ -371,7 +372,7 @@ class VoiceChat {
         });
     }
 
-    addMessage(role, content, ttsAudio = null) {
+    addMessage(role, content, ttsAudio = null, speechAnalysis = null) {
         // Remove welcome message if it exists
         const welcomeMessage = this.messagesContainer.querySelector('.welcome-message');
         if (welcomeMessage) {
@@ -397,6 +398,59 @@ class VoiceChat {
 
         const wrapper = document.createElement('div');
         wrapper.appendChild(contentDiv);
+
+        // Add speech analysis scores if available (for user voice messages)
+        if (role === 'user' && speechAnalysis) {
+            const analysisContainer = document.createElement('div');
+            analysisContainer.className = 'speech-analysis-container';
+
+            const analysisTitle = document.createElement('div');
+            analysisTitle.className = 'analysis-title';
+            analysisTitle.textContent = '🎯 Speech Analysis';
+
+            const scoresContainer = document.createElement('div');
+            scoresContainer.className = 'analysis-scores';
+
+            // Create score bars for confidence, stability, warmth
+            const scores = [
+                { label: 'Confidence', value: speechAnalysis.confidence, color: '#4CAF50' },
+                { label: 'Stability', value: speechAnalysis.stability, color: '#2196F3' },
+                { label: 'Warmth', value: speechAnalysis.warmth, color: '#FF9800' }
+            ];
+
+            scores.forEach(score => {
+                const scoreItem = document.createElement('div');
+                scoreItem.className = 'score-item';
+
+                const scoreLabel = document.createElement('span');
+                scoreLabel.className = 'score-label';
+                scoreLabel.textContent = score.label;
+
+                const scoreBarContainer = document.createElement('div');
+                scoreBarContainer.className = 'score-bar-container';
+
+                const scoreBar = document.createElement('div');
+                scoreBar.className = 'score-bar';
+                scoreBar.style.width = `${score.value}%`;
+                scoreBar.style.backgroundColor = score.color;
+
+                const scoreValue = document.createElement('span');
+                scoreValue.className = 'score-value';
+                scoreValue.textContent = score.value.toFixed(1);
+
+                scoreBarContainer.appendChild(scoreBar);
+                scoreItem.appendChild(scoreLabel);
+                scoreItem.appendChild(scoreBarContainer);
+                scoreItem.appendChild(scoreValue);
+                scoresContainer.appendChild(scoreItem);
+            });
+
+            analysisContainer.appendChild(analysisTitle);
+            analysisContainer.appendChild(scoresContainer);
+            wrapper.appendChild(analysisContainer);
+
+            console.log('Speech analysis displayed:', speechAnalysis);
+        }
 
         // Add TTS audio player if available (for assistant messages)
         if (role === 'assistant' && ttsAudio && ttsAudio.url) {
