@@ -18,6 +18,8 @@ class AudioFileSerializer(serializers.ModelSerializer):
             'duration',
             'transcription_status',
             'transcription_text',
+            'speech_analysis',
+            'analysis_status',
             'uploaded_at',
             'url'
         ]
@@ -75,6 +77,7 @@ class VoiceRecordingResponseSerializer(serializers.Serializer):
     session_id = serializers.CharField(required=False)
     user_message = ChatMessageSerializer(required=False)
     assistant_message = ChatMessageSerializer(required=False)
+    speech_analysis = serializers.JSONField(required=False)
 
 
 class SendMessageRequestSerializer(serializers.Serializer):

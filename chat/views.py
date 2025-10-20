@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 from rest_framework.parsers import MultiPartParser, FormParser
 from .models import ChatSession, ChatMessage, AudioFile, VoiceProfile, TTSAudioFile
-from .services import WhisperService, LocalLLMService, CloneTTSService, PiperTTSService
+from .services import WhisperService, LocalLLMService, CloneTTSService, PiperTTSService, SpeechAnalysisService
 from .serializers import (
     VoiceRecordingRequestSerializer,
     VoiceRecordingResponseSerializer,
@@ -68,6 +68,25 @@ class UploadRecordingView(APIView):
                 audio_file.transcription_text = transcription_text
                 audio_file.save()
                 
+                try:
+                    audio_file.analysis_status = 'analyzing'
+                    audio_file.save()
+                    
+                    analysis_result = SpeechAnalysisService.analyze(audio_file_path)
+                    
+                    audio_file.speech_analysis = analysis_result
+                    audio_file.analysis_status = AudioFile.COMPLETED
+                    audio_file.save()
+                    
+                except Exception as e:
+                    print(f'Speech analysis failed: {str(e)}')
+                    import traceback
+                    traceback.print_exc()
+                    audio_file.analysis_status = AudioFile.FAILED
+                    audio_file.analysis_error = str(e)
+                    audio_file.save()
+                    # Don't fail the entire request - transcription succeeded
+                
                 session_id = input_serializer.validated_data.get('session_id')
                 if session_id:
                     session, _ = ChatSession.objects.get_or_create(
@@ -93,13 +112,18 @@ class UploadRecordingView(APIView):
                 
                 user_msg_serializer = ChatMessageSerializer(user_message)
                 
-                return Response({
+                response_data = {
                     'success': True,
                     'message': 'Audio transcribed successfully',
                     'transcription': transcription_text,
                     'session_id': session_id,
                     'user_message': user_msg_serializer.data,
-                }, status=status.HTTP_201_CREATED)
+                }
+                
+                if audio_file.analysis_status == AudioFile.COMPLETED and audio_file.speech_analysis:
+                    response_data['speech_analysis'] = audio_file.speech_analysis
+                
+                return Response(response_data, status=status.HTTP_201_CREATED)
             
             except Exception as e:
                 import traceback
