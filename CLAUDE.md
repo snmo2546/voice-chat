@@ -568,12 +568,13 @@ The application supports two TTS backends with different performance characteris
 ### Selecting Backend
 
 The TTS backend is selected based on the **speed mode** in the frontend:
-- **Fast mode** → Uses Piper TTS (optimized for speed)
-- **Quality mode** → Uses Coqui TTS (optimized for quality and voice cloning)
+- **Fast mode** → Uses Piper TTS with system models from `settings.PIPER_MODELS`
+- **Quality mode** → Uses Coqui TTS with user's custom voice profile
 
-Each VoiceProfile can provide models for either backend:
-- **Piper**: `piper_model_file` (.onnx) + `piper_config_file` (.json)
-- **Coqui**: `reference_audio` (.wav/.mp3/.webm)
+**Architecture**:
+- **Piper TTS**: Uses pre-configured system models (no user profiles)
+- **Coqui TTS**: Uses user-uploaded voice profiles for voice cloning
+- User profiles created via frontend are always Coqui profiles
 
 ### Quick Start with Piper
 
@@ -593,15 +594,15 @@ Each VoiceProfile can provide models for either backend:
 ### Models
 
 **VoiceProfile** (`chat/models.py`):
-- Stores voice profiles for both TTS backends
+- Stores custom voice profiles for Coqui TTS voice cloning
 - Fields:
-  - `voice_id` (UUID), `name`, `tts_backend` (piper/coqui)
+  - `voice_id` (UUID), `name`, `tts_backend` (always 'coqui')
+  - `reference_audio` (FileField for voice cloning)
   - `is_default`, `user`, `created_at`
-  - **Coqui**: `reference_audio` (FileField for voice cloning)
-  - **Piper**: `piper_model_file` (.onnx), `piper_config_file` (.json)
 - `voice_id` auto-generated on save if not provided
 - Only one default voice per user (auto-enforced on save)
 - System default voice has `user=None`
+- **Note**: Piper TTS uses system models from `settings.PIPER_MODELS`, not user profiles
 
 **TTSAudioFile** (`chat/models.py`):
 - Stores generated TTS audio files
@@ -618,18 +619,17 @@ Each VoiceProfile can provide models for either backend:
 - Anonymous users see only system defaults
 
 **POST /api/chat/upload-voice-profile/**:
-- Upload custom voice profile (supports both Coqui and Piper backends)
-- Request: FormData with `name`, `set_as_default` (bool), and EITHER:
-  - **Coqui**: `reference_audio` (file, 6-30 seconds recommended)
+- Upload custom voice profile for Coqui TTS voice cloning
+- Request: FormData with:
+  - `name`: Display name for the voice profile (required)
+  - `reference_audio`: Audio file for voice cloning (required, 6-30 seconds recommended)
     - Formats: .wav, .mp3, .flac, .ogg, .m4a, .webm
     - Max size: 50MB
-    - **WebM Conversion**: Auto-converted to WAV using ffmpeg
-  - **Piper**: `piper_model` (.onnx) + `piper_config` (.onnx.json)
-    - Model max size: 200MB
-    - Config max size: 1MB
-- Backend auto-detected from file types
+    - **WebM Conversion**: Browser recordings auto-converted to WAV using ffmpeg
+  - `set_as_default`: Boolean to set as default voice (optional)
 - Response: `{ success, message, voice_profile: VoiceProfileSerializer }`
-- VoiceProfileSerializer includes: `tts_backend`, `reference_audio_url`, `piper_model_url`, `piper_config_url`
+- VoiceProfileSerializer includes: `voice_id`, `name`, `tts_backend`, `reference_audio_url`, `is_default`
+- **Note**: Only creates Coqui profiles; Piper TTS uses system models configured in settings
 
 **POST /api/chat/send-message/** (Updated):
 - Now automatically generates TTS audio for AI responses

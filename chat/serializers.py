@@ -171,8 +171,6 @@ class VoiceRecordingRequestSerializer(serializers.Serializer):
 class VoiceProfileSerializer(serializers.ModelSerializer):
     """Serializer for VoiceProfile model."""
     reference_audio_url = serializers.SerializerMethodField()
-    piper_model_url = serializers.SerializerMethodField()
-    piper_config_url = serializers.SerializerMethodField()
     is_system_default = serializers.SerializerMethodField()
     
     class Meta:
@@ -185,28 +183,14 @@ class VoiceProfileSerializer(serializers.ModelSerializer):
             'is_default',
             'is_system_default',
             'reference_audio_url',
-            'piper_model_url',
-            'piper_config_url',
             'created_at'
         ]
-        read_only_fields = ['id', 'voice_id', 'created_at']
+        read_only_fields = ['id', 'voice_id', 'tts_backend', 'created_at']
     
     def get_reference_audio_url(self, obj):
         """Get the URL to access the reference audio file."""
         if obj.reference_audio:
             return obj.reference_audio.url
-        return None
-    
-    def get_piper_model_url(self, obj):
-        """Get the URL to access the Piper model file."""
-        if obj.piper_model_file:
-            return obj.piper_model_file.url
-        return None
-    
-    def get_piper_config_url(self, obj):
-        """Get the URL to access the Piper config file."""
-        if obj.piper_config_file:
-            return obj.piper_config_file.url
         return None
     
     def get_is_system_default(self, obj):
@@ -215,40 +199,10 @@ class VoiceProfileSerializer(serializers.ModelSerializer):
 
 
 class VoiceProfileUploadSerializer(serializers.Serializer):
-    """Serializer for uploading custom voice profiles (supports both Coqui and Piper backends)."""
+    """Serializer for uploading custom voice profiles for Coqui TTS."""
     name = serializers.CharField(required=True, max_length=200, help_text='Display name for the voice profile')
-    
-    # Coqui TTS: single audio file
-    reference_audio = serializers.FileField(required=False, help_text='Reference audio file for Coqui (6-30 seconds recommended)')
-    
-    # Piper TTS: model + config files
-    piper_model = serializers.FileField(required=False, help_text='Piper ONNX model file (.onnx)')
-    piper_config = serializers.FileField(required=False, help_text='Piper config file (.onnx.json)')
-    
+    reference_audio = serializers.FileField(required=True, help_text='Reference audio file for voice cloning (6-30 seconds recommended)')
     set_as_default = serializers.BooleanField(default=False, help_text='Set this as your default voice')
-    
-    def validate(self, data):
-        """Ensure either Coqui or Piper files are provided."""
-        has_coqui = data.get('reference_audio') is not None
-        has_piper = data.get('piper_model') is not None and data.get('piper_config') is not None
-        
-        if not has_coqui and not has_piper:
-            raise serializers.ValidationError(
-                "Please provide either 'reference_audio' (for Coqui TTS) or both 'piper_model' and 'piper_config' (for Piper TTS)"
-            )
-        
-        if has_coqui and has_piper:
-            raise serializers.ValidationError(
-                "Please provide files for only one backend (Coqui OR Piper), not both"
-            )
-        
-        # Validate Piper: both files required
-        if data.get('piper_model') and not data.get('piper_config'):
-            raise serializers.ValidationError("Piper model requires both model (.onnx) and config (.onnx.json) files")
-        if data.get('piper_config') and not data.get('piper_model'):
-            raise serializers.ValidationError("Piper config requires both model (.onnx) and config (.onnx.json) files")
-        
-        return data
     
     def validate_reference_audio(self, value):
         """Validate the uploaded reference audio file for Coqui TTS."""
@@ -270,39 +224,8 @@ class VoiceProfileUploadSerializer(serializers.Serializer):
         
         return value
     
-    def validate_piper_model(self, value):
-        """Validate the uploaded Piper model file."""
-        if not value:
-            return value
-        
-        # Max size: 200MB (Piper models can be large)
-        max_size = 200 * 1024 * 1024
-        if value.size > max_size:
-            raise serializers.ValidationError('Piper model file size cannot exceed 200MB.')
-        
-        ext = os.path.splitext(value.name)[1].lower()
-        if ext != '.onnx':
-            raise serializers.ValidationError('Piper model must be an .onnx file')
-        
-        return value
-    
-    def validate_piper_config(self, value):
-        """Validate the uploaded Piper config file."""
-        if not value:
-            return value
-        
-        max_size = 1 * 1024 * 1024
-        if value.size > max_size:
-            raise serializers.ValidationError('Piper config file size cannot exceed 1MB.')
-        
-        ext = os.path.splitext(value.name)[1].lower()
-        if ext != '.json':
-            raise serializers.ValidationError('Piper config must be a .json file')
-        
-        return value
-    
     def save(self, user):
-        """Save the voice profile (supports both Coqui and Piper backends)."""
+        """Save the Coqui TTS voice profile."""
         from django.core.files.base import ContentFile
         import tempfile
         import subprocess
@@ -312,84 +235,67 @@ class VoiceProfileUploadSerializer(serializers.Serializer):
         timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
         user_id = user.id if hasattr(user, 'id') else 'anonymous'
         
-        # Determine backend based on provided files
-        has_coqui = self.validated_data.get('reference_audio') is not None
-        has_piper = self.validated_data.get('piper_model') is not None
-        
         voice_profile = VoiceProfile(
             name=name,
             is_default=set_as_default,
-            tts_backend='coqui' if has_coqui else 'piper',
+            tts_backend='coqui',
             user=user if hasattr(user, 'pk') else None
         )
         
-        if has_piper:
-            piper_model = self.validated_data['piper_model']
-            piper_config = self.validated_data['piper_config']
-            
-            model_filename = f'piper_{timestamp}_{user_id}.onnx'
-            voice_profile.piper_model_file.save(model_filename, piper_model, save=False)
-            
-            config_filename = f'piper_{timestamp}_{user_id}.onnx.json'
-            voice_profile.piper_config_file.save(config_filename, piper_config, save=False)
-            
-            voice_profile.save()
+        reference_audio = self.validated_data['reference_audio']
+        ext = os.path.splitext(reference_audio.name)[1].lower()
         
-        else:
-            reference_audio = self.validated_data['reference_audio']
-            ext = os.path.splitext(reference_audio.name)[1].lower()
-            
-            if ext == '.webm':
-                try:
-                    # Create temporary files
-                    with tempfile.NamedTemporaryFile(delete=False, suffix='.webm') as temp_webm:
-                        # Write uploaded WebM
-                        for chunk in reference_audio.chunks():
-                            temp_webm.write(chunk)
-                        temp_webm_path = temp_webm.name
-                    
-                    temp_wav_path = tempfile.mktemp(suffix='.wav')
-                    
-                    subprocess.run([
-                        'ffmpeg', '-i', temp_webm_path,
-                        '-acodec', 'pcm_s16le',
-                        '-ar', '22050',
-                        '-ac', '1',
-                        temp_wav_path
-                    ], check=True, capture_output=True)
-                    
-                    with open(temp_wav_path, 'rb') as wav_file:
-                        wav_content = wav_file.read()
-                    
-                    os.unlink(temp_webm_path)
-                    os.unlink(temp_wav_path)
-                    
-                    filename = f'voice_{timestamp}_{user_id}.wav'
-                    voice_profile.reference_audio.save(filename, ContentFile(wav_content), save=True)
+        if ext == '.webm':
+            try:
+                # Create temporary files
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.webm') as temp_webm:
+                    # Write uploaded WebM
+                    for chunk in reference_audio.chunks():
+                        temp_webm.write(chunk)
+                    temp_webm_path = temp_webm.name
                 
-                except subprocess.CalledProcessError as e:
-                    raise serializers.ValidationError(
-                        f'Failed to convert WebM to WAV. Error: {e.stderr.decode()}'
-                    )
-                except FileNotFoundError:
-                    raise serializers.ValidationError(
-                        'ffmpeg not found. Please install ffmpeg to convert WebM files.'
-                    )
-                except Exception as e:
-                    raise serializers.ValidationError(
-                        f'Error converting audio file: {str(e)}'
-                    )
-            else:
-                filename = f'voice_{timestamp}_{user_id}{ext}'
-                try:
-                    voice_profile.reference_audio.save(filename, reference_audio, save=True)
-                except (IOError, OSError) as e:
-                    raise serializers.ValidationError(
-                        f'Failed to save reference audio: {str(e)}'
-                    )
-                except Exception as e:
-                    raise serializers.ValidationError(
-                        f'Unexpected error saving voice profile: {str(e)}'
-                    )
+                temp_wav_path = tempfile.mktemp(suffix='.wav')
+                
+                subprocess.run([
+                    'ffmpeg', '-i', temp_webm_path,
+                    '-acodec', 'pcm_s16le',
+                    '-ar', '22050',
+                    '-ac', '1',
+                    temp_wav_path
+                ], check=True, capture_output=True)
+                
+                with open(temp_wav_path, 'rb') as wav_file:
+                    wav_content = wav_file.read()
+                
+                os.unlink(temp_webm_path)
+                os.unlink(temp_wav_path)
+                
+                filename = f'voice_{timestamp}_{user_id}.wav'
+                voice_profile.reference_audio.save(filename, ContentFile(wav_content), save=True)
+            
+            except subprocess.CalledProcessError as e:
+                raise serializers.ValidationError(
+                    f'Failed to convert WebM to WAV. Error: {e.stderr.decode()}'
+                )
+            except FileNotFoundError:
+                raise serializers.ValidationError(
+                    'ffmpeg not found. Please install ffmpeg to convert WebM files.'
+                )
+            except Exception as e:
+                raise serializers.ValidationError(
+                    f'Error converting audio file: {str(e)}'
+                )
+        else:
+            filename = f'voice_{timestamp}_{user_id}{ext}'
+            try:
+                voice_profile.reference_audio.save(filename, reference_audio, save=True)
+            except (IOError, OSError) as e:
+                raise serializers.ValidationError(
+                    f'Failed to save reference audio: {str(e)}'
+                )
+            except Exception as e:
+                raise serializers.ValidationError(
+                    f'Unexpected error saving voice profile: {str(e)}'
+                )
         
         return voice_profile

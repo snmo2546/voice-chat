@@ -5,47 +5,26 @@ import uuid
 
 
 class VoiceProfile(models.Model):
-    """Model to manage voice profiles for TTS (text-to-speech) - supports both Piper and Coqui backends."""
-    
-    TTS_BACKEND_CHOICES = [
-        ('piper', 'Piper TTS'),
-        ('coqui', 'Coqui TTS'),
-    ]
+    """Model to manage custom voice profiles for Coqui TTS voice cloning."""
     
     voice_id = models.CharField(max_length=100, unique=True, db_index=True, help_text='Unique identifier for the voice')
-    name = models.CharField(max_length=200, help_text='Display name for the voice (e.g., "Default AI Voice", "My Voice")')
+    name = models.CharField(max_length=200, help_text='Display name for the voice (e.g., "My Voice", "Professional Voice")')
     
-    # TTS backend selection
-    tts_backend = models.CharField(
-        max_length=20,
-        choices=TTS_BACKEND_CHOICES,
-        default='piper',
-        help_text='TTS engine to use for this voice'
-    )
-    
-    # Coqui TTS fields (voice cloning)
+    # Coqui TTS: reference audio for voice cloning
     reference_audio = models.FileField(
         upload_to='voice_profiles/',
-        null=True,
-        blank=True,
-        help_text='Reference audio file for Coqui voice cloning'
+        help_text='Reference audio file for voice cloning (6-30 seconds recommended)'
     )
     
-    # Piper TTS fields (pre-trained models)
-    piper_model_file = models.FileField(
-        upload_to='piper_voices/',
-        null=True,
-        blank=True,
-        help_text='Piper ONNX model file (.onnx)'
-    )
-    piper_config_file = models.FileField(
-        upload_to='piper_voices/',
-        null=True,
-        blank=True,
-        help_text='Piper model config file (.onnx.json)'
+    # Currently only supports Coqui TTS backend
+    tts_backend = models.CharField(
+        max_length=20,
+        default='coqui',
+        editable=False,
+        help_text='TTS backend (always Coqui for user profiles)'
     )
     
-    is_default = models.BooleanField(default=False, help_text='Whether this is the default system voice')
+    is_default = models.BooleanField(default=False, help_text='Whether this is the default voice for this user')
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -61,8 +40,7 @@ class VoiceProfile(models.Model):
     
     def __str__(self):
         default_label = ' (Default)' if self.is_default else ''
-        backend_label = f' [{self.get_tts_backend_display()}]'
-        return f'{self.name}{default_label}{backend_label}'
+        return f'{self.name}{default_label}'
     
     def save(self, *args, **kwargs):
         # Auto-generate voice_id if not set

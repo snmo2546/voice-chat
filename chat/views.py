@@ -241,14 +241,10 @@ class SendMessageView(APIView):
                         ).first()
                     
                     if speed_mode == 'fast':
-                        speaker_wav = None
-                        if voice_profile and voice_profile.piper_model_file:
-                            speaker_wav = voice_profile.piper_model_file.path
-                        
                         tts_result = PiperTTSService.synthesize_speech(
                             text=llm_response,
                             voice_id=voice_profile.voice_id if voice_profile else 'default',
-                            speaker_wav=speaker_wav
+                            speaker_wav=None  # Piper uses system models, not user profiles
                         )
                     else:
                         speaker_wav = None
