@@ -107,6 +107,9 @@ class AudioFileAdmin(admin.ModelAdmin):
         ('Transcription', {
             'fields': ('transcription_status', 'transcription_text')
         }),
+        ('Analysis', {
+            'fields': ('speech_analysis', 'analysis_status', 'analysis_error')
+        }),
         ('Metadata', {
             'fields': ('uploaded_by', 'uploaded_at'),
             'classes': ('collapse',)

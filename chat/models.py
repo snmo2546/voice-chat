@@ -93,6 +93,13 @@ class AudioFile(models.Model):
         (FAILED, 'Failed'),
     ]
     
+    ANALYSIS_STATUS_CHOICES = [
+        (PENDING, 'Pending'),
+        ('analyzing', 'Analyzing'),
+        (COMPLETED, 'Completed'),
+        (FAILED, 'Failed'),
+    ]
+    
     file = models.FileField(upload_to='recordings/', help_text='Audio file')
     original_filename = models.CharField(max_length=255, help_text='Original filename from upload')
     file_size = models.IntegerField(help_text='File size in bytes')
@@ -105,6 +112,24 @@ class AudioFile(models.Model):
         help_text='Current transcription processing status'
     )
     transcription_text = models.TextField(blank=True, null=True, help_text='Transcribed text content')
+    
+    speech_analysis = models.JSONField(
+        null=True,
+        blank=True,
+        help_text='Speech characteristic analysis results (confidence, stability, warmth)'
+    )
+    analysis_status = models.CharField(
+        max_length=20,
+        choices=ANALYSIS_STATUS_CHOICES,
+        default=PENDING,
+        help_text='Status of speech analysis'
+    )
+    analysis_error = models.TextField(
+        null=True,
+        blank=True,
+        help_text='Error message if analysis failed'
+    )
+    
     uploaded_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,

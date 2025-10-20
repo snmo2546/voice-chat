@@ -8,3 +8,5 @@ TTS>=0.22.0
 torch==2.3.0
 torchaudio==2.3.0
 piper-tts==1.3.0
+silero-vad==6.0.0
+# Install pyAudioAnalysis from https://github.com/tyiannak/pyAudioAnalysis
