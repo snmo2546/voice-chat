@@ -43,6 +43,7 @@ class VoiceChat {
         this.recordingInterval = null;
         this.sessionId = null;  // Track current chat session
         this.speedMode = 'fast';  // Track TTS speed mode (fast/quality)
+        this.voiceProfileCount = 0;  // Track number of voice profiles
 
         // Voice profile recording state
         this.isVoiceProfileRecording = false;
@@ -54,6 +55,7 @@ class VoiceChat {
 
         this.initializeEventListeners();
         this.checkMicrophoneSupport();
+        this.checkVoiceProfiles();  // Check voice profiles on load
     }
 
     // Get CSRF token from cookie
@@ -130,6 +132,46 @@ class VoiceChat {
             this.voiceBtn.disabled = true;
             this.voiceBtn.title = 'Voice recording not supported in this browser';
             console.warn('Media devices not supported');
+        }
+    }
+
+    async checkVoiceProfiles() {
+        try {
+            const response = await fetch('/api/chat/voice-profiles/', {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': this.getCsrfToken()
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                this.voiceProfileCount = data.count || 0;
+                this.updateQualityModeState();
+            }
+        } catch (error) {
+            console.error('Error checking voice profiles:', error);
+        }
+    }
+
+    updateQualityModeState() {
+        if (this.voiceProfileCount === 0) {
+            // Disable quality mode button if no profiles
+            this.qualityModeBtn.disabled = true;
+            this.qualityModeBtn.title = 'Create a voice profile to use Quality mode';
+            this.qualityModeBtn.style.opacity = '0.5';
+            this.qualityModeBtn.style.cursor = 'not-allowed';
+
+            // If currently in quality mode, switch to fast mode
+            if (this.speedMode === 'quality') {
+                this.setSpeedMode('fast');
+            }
+        } else {
+            // Enable quality mode button
+            this.qualityModeBtn.disabled = false;
+            this.qualityModeBtn.title = 'Quality mode with voice cloning (15-30s, XTTS v2)';
+            this.qualityModeBtn.style.opacity = '1';
+            this.qualityModeBtn.style.cursor = 'pointer';
         }
     }
 
@@ -259,6 +301,12 @@ class VoiceChat {
             });
 
             // Phase 2: AI Response
+            // Validate: Quality mode requires a voice profile
+            if (this.speedMode === 'quality' && this.voiceProfileCount === 0) {
+                this.addMessage('assistant', 'Quality mode requires a voice profile. Please create a voice profile or switch to Fast mode.');
+                return;
+            }
+
             const thinkingId = this.addMessage('assistant', '💭 AI is thinking...');
 
             try {
@@ -286,8 +334,18 @@ class VoiceChat {
                     this.addMessage('assistant', aiResult.assistant_message.content, aiResult.assistant_message.tts_audio);
                     console.log('AI response received');
                 } else {
-                    console.error('AI response failed:', aiResult.message);
-                    this.addMessage('assistant', `Error: ${aiResult.message}`);
+                    // Handle specific error codes
+                    if (aiResult.error_code === 'VOICE_PROFILE_REQUIRED') {
+                        // Show text response even if TTS failed
+                        if (aiResult.assistant_message) {
+                            this.addMessage('assistant', aiResult.assistant_message.content);
+                        }
+                        // Show error modal with options
+                        alert(`${aiResult.message}\n\nYou can:\n1. Create a voice profile in "Manage Voices"\n2. Switch to Fast mode`);
+                    } else {
+                        console.error('AI response failed:', aiResult.message);
+                        this.addMessage('assistant', `Error: ${aiResult.message}`);
+                    }
                 }
 
             } catch (error) {
@@ -306,6 +364,12 @@ class VoiceChat {
     async sendMessage() {
         const message = this.messageInput.value.trim();
         if (!message) return;
+
+        // Validate: Quality mode requires a voice profile
+        if (this.speedMode === 'quality' && this.voiceProfileCount === 0) {
+            alert('Quality mode requires a voice profile. Please create a voice profile or switch to Fast mode.');
+            return;
+        }
 
         // Add user message
         this.addMessage('user', message);
@@ -352,8 +416,18 @@ class VoiceChat {
                 this.addMessage('assistant', result.assistant_message.content, result.assistant_message.tts_audio);
                 console.log('AI response received for text message');
             } else {
-                console.error('AI response failed:', result.message);
-                this.addMessage('assistant', `Error: ${result.message}`);
+                // Handle specific error codes
+                if (result.error_code === 'VOICE_PROFILE_REQUIRED') {
+                    // Show text response even if TTS failed
+                    if (result.assistant_message) {
+                        this.addMessage('assistant', result.assistant_message.content);
+                    }
+                    // Show error modal with options
+                    alert(`${result.message}\n\nYou can:\n1. Create a voice profile in "Manage Voices"\n2. Switch to Fast mode`);
+                } else {
+                    console.error('AI response failed:', result.message);
+                    this.addMessage('assistant', `Error: ${result.message}`);
+                }
             }
 
         } catch (error) {
@@ -624,8 +698,9 @@ class VoiceChat {
                 nameInput.value = '';
                 audioFileInput.value = '';
                 setDefaultCheckbox.checked = false;
-                // Reload profiles
+                // Reload profiles and update quality mode state
                 await this.loadVoiceProfiles();
+                await this.checkVoiceProfiles();
             } else {
                 alert(`Failed to upload voice profile: ${result.message}`);
             }
@@ -761,8 +836,9 @@ class VoiceChat {
                 alert('Voice profile created successfully!');
                 // Reset everything
                 this.cancelVoiceRecording();
-                // Reload profiles
+                // Reload profiles and update quality mode state
                 await this.loadVoiceProfiles();
+                await this.checkVoiceProfiles();
             } else {
                 alert(`Failed to create voice profile: ${result.message}`);
             }

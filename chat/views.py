@@ -233,12 +233,24 @@ class SendMessageView(APIView):
                             user=request.user,
                             is_default=True
                         ).first()
+                    else:
+                        session_key = request.session.session_key
+                        if session_key:
+                            voice_profile = VoiceProfile.objects.filter(
+                                session_key=session_key,
+                                is_default=True
+                            ).first()
                     
-                    if not voice_profile:
-                        voice_profile = VoiceProfile.objects.filter(
-                            user=None,
-                            is_default=True
-                        ).first()
+                    if speed_mode == 'quality':
+                        if not voice_profile or not voice_profile.reference_audio:
+                            assistant_msg_serializer = ChatMessageSerializer(assistant_message)
+                            return Response({
+                                'success': False,
+                                'message': 'Quality mode requires a voice profile. Please create a voice profile or switch to Fast mode.',
+                                'error_code': 'VOICE_PROFILE_REQUIRED',
+                                'session_id': session_id,
+                                'assistant_message': assistant_msg_serializer.data,
+                            }, status=status.HTTP_400_BAD_REQUEST)
                     
                     if speed_mode == 'fast':
                         tts_result = PiperTTSService.synthesize_speech(
@@ -323,9 +335,14 @@ class VoiceProfileUploadView(APIView):
         
         if input_serializer.is_valid():
             try:
-                user = request.user if request.user.is_authenticated else type('obj', (object,), {'id': 'anonymous'})()
+                # Get or create session for anonymous users
+                if not request.session.session_key:
+                    request.session.create()
                 
-                voice_profile = input_serializer.save(user=user)
+                session_key = request.session.session_key if not request.user.is_authenticated else None
+                user = request.user if request.user.is_authenticated else None
+                
+                voice_profile = input_serializer.save(user=user, session_key=session_key)
                 
                 output_serializer = VoiceProfileSerializer(voice_profile)
                 
@@ -364,15 +381,17 @@ class VoiceProfileListView(APIView):
     )
     def get(self, request):
         try:
-            # Get system default voices and user's custom voices
-            profiles = VoiceProfile.objects.filter(
-                user=None  # System default
-            )
-            
             if request.user.is_authenticated:
-                # Include user's custom voices
-                user_profiles = VoiceProfile.objects.filter(user=request.user)
-                profiles = profiles | user_profiles
+                # Authenticated users: only see their own profiles
+                profiles = VoiceProfile.objects.filter(user=request.user)
+            else:
+                # Anonymous users: only see profiles from their current session
+                session_key = request.session.session_key
+                if session_key:
+                    profiles = VoiceProfile.objects.filter(session_key=session_key)
+                else:
+                    # No session yet, return empty list
+                    profiles = VoiceProfile.objects.none()
             
             serializer = VoiceProfileSerializer(profiles, many=True)
             

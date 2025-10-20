@@ -24,15 +24,25 @@ class VoiceProfile(models.Model):
         help_text='TTS backend (always Coqui for user profiles)'
     )
     
-    is_default = models.BooleanField(default=False, help_text='Whether this is the default voice for this user')
+    is_default = models.BooleanField(default=False, help_text='Whether this is the default voice for this user/session')
+    
+    # User ownership: either authenticated user OR anonymous session
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name='voice_profiles',
-        help_text='User who owns this voice profile (null for system default)'
+        help_text='User who owns this voice profile (for authenticated users)'
     )
+    session_key = models.CharField(
+        max_length=40,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='Session key for anonymous users (for session-based voice profiles)'
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
@@ -47,12 +57,12 @@ class VoiceProfile(models.Model):
         if not self.voice_id:
             self.voice_id = str(uuid.uuid4())
         
-        # Ensure only one default voice exists per user
+        # Ensure only one default voice exists per user or session
         if self.is_default:
             if self.user:
                 VoiceProfile.objects.filter(user=self.user, is_default=True).update(is_default=False)
-            else:
-                VoiceProfile.objects.filter(user__isnull=True, is_default=True).update(is_default=False)
+            elif self.session_key:
+                VoiceProfile.objects.filter(session_key=self.session_key, is_default=True).update(is_default=False)
         
         super().save(*args, **kwargs)
 

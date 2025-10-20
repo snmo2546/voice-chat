@@ -576,6 +576,13 @@ The TTS backend is selected based on the **speed mode** in the frontend:
 - **Coqui TTS**: Uses user-uploaded voice profiles for voice cloning
 - User profiles created via frontend are always Coqui profiles
 
+**Quality Mode Validation**:
+- Quality mode **requires** a voice profile to be created first
+- Backend validation: Returns 400 error if no profile exists
+- Frontend validation: Disables Quality mode button if no profiles
+- Error response includes text message even if TTS fails
+- Users are prompted to create a profile or switch to Fast mode
+
 ### Quick Start with Piper
 
 1. Download a voice model from https://github.com/rhasspy/piper/releases
@@ -598,10 +605,16 @@ The TTS backend is selected based on the **speed mode** in the frontend:
 - Fields:
   - `voice_id` (UUID), `name`, `tts_backend` (always 'coqui')
   - `reference_audio` (FileField for voice cloning)
-  - `is_default`, `user`, `created_at`
+  - `user` (ForeignKey to User, nullable for anonymous)
+  - `session_key` (CharField for anonymous session tracking)
+  - `is_default`, `created_at`
 - `voice_id` auto-generated on save if not provided
-- Only one default voice per user (auto-enforced on save)
-- System default voice has `user=None`
+- Only one default voice per user/session (auto-enforced on save)
+- **Authenticated users**: `user` field set, `session_key` is null
+- **Anonymous users**: `session_key` field set, `user` is null
+- Voice profiles are private:
+  - Authenticated users only see their own profiles
+  - Anonymous users only see profiles from their current session
 - **Note**: Piper TTS uses system models from `settings.PIPER_MODELS`, not user profiles
 
 **TTSAudioFile** (`chat/models.py`):

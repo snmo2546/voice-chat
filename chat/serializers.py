@@ -224,7 +224,7 @@ class VoiceProfileUploadSerializer(serializers.Serializer):
         
         return value
     
-    def save(self, user):
+    def save(self, user, session_key=None):
         """Save the Coqui TTS voice profile."""
         from django.core.files.base import ContentFile
         import tempfile
@@ -233,13 +233,14 @@ class VoiceProfileUploadSerializer(serializers.Serializer):
         name = self.validated_data['name']
         set_as_default = self.validated_data.get('set_as_default', False)
         timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
-        user_id = user.id if hasattr(user, 'id') else 'anonymous'
+        user_id = user.id if user and hasattr(user, 'id') else 'anonymous'
         
         voice_profile = VoiceProfile(
             name=name,
             is_default=set_as_default,
             tts_backend='coqui',
-            user=user if hasattr(user, 'pk') else None
+            user=user,
+            session_key=session_key
         )
         
         reference_audio = self.validated_data['reference_audio']
