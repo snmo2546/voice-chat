@@ -84,26 +84,32 @@
                                     <span class="recording-pulse">🔴</span>
                                     <span id="voiceRecordTime">0:00</span>
                                 </div>
-                                <audio id="voicePreview" controls style="display: none; width: 100%; margin-top: 10px;"></audio>
+                                <audio id="voicePreview" controls class="voice-preview-player" style="display: none;"></audio>
                             </div>
                             <form id="voiceRecordForm" style="display: none;">
-                                <input type="text" id="voiceNameRecord" placeholder="Voice name (e.g., 'My Voice')" required>
-                                <label>
-                                    <input type="checkbox" id="setAsDefaultRecord"> Set as default voice
-                                </label>
-                                <button type="submit" class="btn-upload">Save Voice Profile</button>
-                                <button type="button" class="btn-cancel" id="cancelRecordBtn">Cancel</button>
+                                <div class="form-group">
+                                    <input type="text" id="voiceNameRecord" placeholder="Voice name (e.g., 'My Voice')" required>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="setAsDefaultRecord"> Set as default voice
+                                    </label>
+                                </div>
+                                <div class="form-buttons">
+                                    <button type="submit" class="btn-upload">Save Voice Profile</button>
+                                    <button type="button" class="btn-cancel" id="cancelRecordBtn">Cancel</button>
+                                </div>
                             </form>
                         </div>
 
                         <!-- Upload File Tab -->
                         <div class="tab-content" id="uploadContent">
                             <form id="voiceUploadForm">
-                                <input type="text" id="voiceName" placeholder="Voice name (e.g., 'My Voice')" required>
+                                <div class="form-group">
+                                    <input type="text" id="voiceName" placeholder="Voice name (e.g., 'My Voice')" required>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="setAsDefault"> Set as default voice
+                                    </label>
+                                </div>
                                 <input type="file" id="voiceAudioFile" accept="audio/*" required>
-                                <label>
-                                    <input type="checkbox" id="setAsDefault"> Set as default voice
-                                </label>
                                 <button type="submit" class="btn-upload">Upload Voice</button>
                             </form>
                         </div>
