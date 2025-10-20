@@ -192,6 +192,11 @@ class VoiceProfileSerializer(serializers.ModelSerializer):
         return None
 
 
+class VoiceProfileUpdateSerializer(serializers.Serializer):
+    """Serializer for updating voice profile settings."""
+    is_default = serializers.BooleanField(required=True, help_text='Set this voice profile as default')
+
+
 class VoiceProfileUploadSerializer(serializers.Serializer):
     """Serializer for uploading custom voice profiles for Coqui TTS."""
     name = serializers.CharField(required=True, max_length=200, help_text='Display name for the voice profile')

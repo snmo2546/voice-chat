@@ -655,6 +655,12 @@ class VoiceChat {
                         badge.className = 'voice-profile-badge';
                         badge.textContent = 'DEFAULT';
                         profileDiv.appendChild(badge);
+                    } else {
+                        const setDefaultBtn = document.createElement('button');
+                        setDefaultBtn.className = 'set-default-btn';
+                        setDefaultBtn.textContent = 'Set as Default';
+                        setDefaultBtn.onclick = () => this.setVoiceProfileDefault(profile.voice_id);
+                        profileDiv.appendChild(setDefaultBtn);
                     }
 
                     this.voiceProfilesList.appendChild(profileDiv);
@@ -666,6 +672,35 @@ class VoiceChat {
         } catch (error) {
             console.error('Error loading voice profiles:', error);
             this.voiceProfilesList.innerHTML = '<p class="loading-text">Error loading voice profiles</p>';
+        }
+    }
+
+    async setVoiceProfileDefault(voiceId) {
+        try {
+            const response = await fetch(`/api/chat/voice-profiles/${voiceId}/`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken()
+                },
+                body: JSON.stringify({
+                    is_default: true
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Reload profiles to update UI
+                await this.loadVoiceProfiles();
+                await this.checkVoiceProfiles();
+            } else {
+                alert(`Failed to set default voice: ${result.message}`);
+            }
+
+        } catch (error) {
+            console.error('Error setting default voice profile:', error);
+            alert('Error setting default voice. Please try again.');
         }
     }
 

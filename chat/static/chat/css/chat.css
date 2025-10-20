@@ -579,6 +579,24 @@ body {
     margin-left: 10px;
 }
 
+.set-default-btn {
+    background-color: #fff;
+    color: #10a37f;
+    border: 1px solid #10a37f;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-left: 10px;
+}
+
+.set-default-btn:hover {
+    background-color: #10a37f;
+    color: #fff;
+}
+
 .upload-voice-section {
     border-top: 1px solid #e5e5e5;
     padding-top: 20px;

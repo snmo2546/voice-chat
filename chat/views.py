@@ -17,7 +17,8 @@ from .serializers import (
     SendMessageRequestSerializer,
     SendMessageResponseSerializer,
     VoiceProfileSerializer,
-    VoiceProfileUploadSerializer
+    VoiceProfileUploadSerializer,
+    VoiceProfileUpdateSerializer
 )
 
 
@@ -409,3 +410,72 @@ class VoiceProfileListView(APIView):
                 'message': 'Error retrieving voice profiles',
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class VoiceProfileUpdateView(APIView):
+    """API view for updating voice profile settings."""
+    permission_classes = [AllowAny]
+    
+    @extend_schema(
+        summary="Update voice profile settings",
+        description="Update settings for a voice profile (e.g., set as default). Users can only update their own profiles.",
+        request=VoiceProfileUpdateSerializer,
+        responses={
+            200: VoiceProfileSerializer,
+        },
+    )
+    def patch(self, request, voice_id):
+        input_serializer = VoiceProfileUpdateSerializer(data=request.data)
+        
+        if input_serializer.is_valid():
+            try:
+                if request.user.is_authenticated:
+                    voice_profile = VoiceProfile.objects.filter(
+                        voice_id=voice_id,
+                        user=request.user
+                    ).first()
+                else:
+                    session_key = request.session.session_key
+                    if not session_key:
+                        return Response({
+                            'success': False,
+                            'message': 'No session found',
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                    
+                    voice_profile = VoiceProfile.objects.filter(
+                        voice_id=voice_id,
+                        session_key=session_key
+                    ).first()
+                
+                if not voice_profile:
+                    return Response({
+                        'success': False,
+                        'message': 'Voice profile not found or you do not have permission to update it',
+                    }, status=status.HTTP_404_NOT_FOUND)
+                
+                is_default = input_serializer.validated_data['is_default']
+                voice_profile.is_default = is_default
+                voice_profile.save()  # save() method will handle clearing other defaults
+                
+                output_serializer = VoiceProfileSerializer(voice_profile)
+                
+                return Response({
+                    'success': True,
+                    'message': 'Voice profile updated successfully',
+                    'voice_profile': output_serializer.data,
+                }, status=status.HTTP_200_OK)
+            
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                return Response({
+                    'success': False,
+                    'message': 'Error updating voice profile',
+                    'error': str(e)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response({
+            'success': False,
+            'message': 'Validation failed',
+            'errors': input_serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)

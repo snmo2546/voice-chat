@@ -46,7 +46,7 @@ class VoiceProfile(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
-        ordering = ['-is_default', '-created_at']
+        ordering = ['-created_at']
     
     def __str__(self):
         default_label = ' (Default)' if self.is_default else ''
