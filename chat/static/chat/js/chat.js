@@ -9,6 +9,7 @@ class VoiceChat {
         this.recordingIndicator = document.getElementById('recordingIndicator');
         this.recordingTime = document.getElementById('recordingTime');
         this.stopRecordingBtn = document.getElementById('stopRecordingBtn');
+        this.sessionsList = document.getElementById('sessionsList');
 
         // Voice settings
         this.voiceSettingsBtn = document.getElementById('voiceSettingsBtn');
@@ -56,6 +57,7 @@ class VoiceChat {
         this.initializeEventListeners();
         this.checkMicrophoneSupport();
         this.checkVoiceProfiles();  // Check voice profiles on load
+        this.loadUserSessions();  // Load user sessions on init
     }
 
     // Get CSRF token from cookie
@@ -333,6 +335,9 @@ class VoiceChat {
                     // Display AI response with TTS audio if available
                     this.addMessage('assistant', aiResult.assistant_message.content, aiResult.assistant_message.tts_audio);
                     console.log('AI response received');
+
+                    // Reload session list (session was already created during transcription)
+                    await this.loadUserSessions();
                 } else {
                     // Handle specific error codes
                     if (aiResult.error_code === 'VOICE_PROFILE_REQUIRED') {
@@ -408,6 +413,7 @@ class VoiceChat {
 
             if (result.success) {
                 // Update session_id if it was created on the backend
+                const isNewSession = !this.sessionId && result.session_id;
                 if (result.session_id) {
                     this.sessionId = result.session_id;
                 }
@@ -415,6 +421,11 @@ class VoiceChat {
                 // Display AI response with TTS audio if available
                 this.addMessage('assistant', result.assistant_message.content, result.assistant_message.tts_audio);
                 console.log('AI response received for text message');
+
+                // Reload session list if this was a new session
+                if (isNewSession) {
+                    await this.loadUserSessions();
+                }
             } else {
                 // Handle specific error codes
                 if (result.error_code === 'VOICE_PROFILE_REQUIRED') {
@@ -446,7 +457,7 @@ class VoiceChat {
         });
     }
 
-    addMessage(role, content, ttsAudio = null, speechAnalysis = null) {
+    addMessage(role, content, ttsAudio = null, speechAnalysis = null, autoPlay = true) {
         // Remove welcome message if it exists
         const welcomeMessage = this.messagesContainer.querySelector('.welcome-message');
         if (welcomeMessage) {
@@ -536,14 +547,18 @@ class VoiceChat {
             audioElement.className = 'tts-audio-player';
             audioElement.src = ttsAudio.url;
 
-            // Auto-play the TTS audio (with user interaction permission)
-            audioElement.autoplay = true;
-            audioElement.preload = 'auto';
+            // Only auto-play if this is a new real-time message, not when loading history
+            if (autoPlay) {
+                audioElement.autoplay = true;
+                audioElement.preload = 'auto';
 
-            // Handle autoplay errors (browser may block autoplay without user interaction)
-            audioElement.play().catch(error => {
-                console.log('Auto-play blocked by browser. User must interact with the page first.', error);
-            });
+                // Handle autoplay errors (browser may block autoplay without user interaction)
+                audioElement.play().catch(error => {
+                    console.log('Auto-play blocked by browser. User must interact with the page first.', error);
+                });
+            } else {
+                audioElement.preload = 'metadata';
+            }
 
             const voiceLabel = document.createElement('span');
             voiceLabel.className = 'tts-voice-label';
@@ -557,7 +572,8 @@ class VoiceChat {
                 url: ttsAudio.url,
                 voice: ttsAudio.voice_name,
                 duration: ttsAudio.duration,
-                generationTime: ttsAudio.generation_time
+                generationTime: ttsAudio.generation_time,
+                autoPlay: autoPlay
             });
         }
 
@@ -596,6 +612,11 @@ class VoiceChat {
 
         // Clear session ID to start a new conversation
         this.sessionId = null;
+
+        // Update session list UI - remove active from all sessions
+        document.querySelectorAll('.session-item').forEach(item => {
+            item.classList.remove('active');
+        });
 
         console.log('New chat created');
     }
@@ -903,6 +924,166 @@ class VoiceChat {
         this.startVoiceRecordBtn.style.display = 'flex';
         this.stopVoiceRecordBtn.style.display = 'none';
         this.voiceRecordTimer.style.display = 'none';
+    }
+
+    // Session Management
+    async loadUserSessions() {
+        try {
+            const response = await fetch('/api/chat/sessions/', {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': this.getCsrfToken()
+                }
+            });
+
+            // If unauthorized, user is not authenticated - don't show error
+            if (response.status === 401) {
+                console.log('User not authenticated - session browsing disabled');
+                this.sessionsList.innerHTML = `
+                    <div class="session-item active">
+                        <div class="session-title">New Chat</div>
+                        <div class="session-meta">Just now · 0 messages</div>
+                    </div>
+                `;
+                return;
+            }
+
+            const result = await response.json();
+
+            if (result.success && result.sessions) {
+                if (result.sessions.length === 0) {
+                    // No sessions yet
+                    this.sessionsList.innerHTML = `
+                        <div class="session-item active">
+                            <div class="session-title">New Chat</div>
+                            <div class="session-meta">Just now · 0 messages</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Display sessions
+                this.sessionsList.innerHTML = '';
+                result.sessions.forEach((session, index) => {
+                    const sessionDiv = document.createElement('div');
+                    sessionDiv.className = 'session-item';
+
+                    // Mark current session as active
+                    if (this.sessionId === session.session_id) {
+                        sessionDiv.classList.add('active');
+                    }
+
+                    const titleDiv = document.createElement('div');
+                    titleDiv.className = 'session-title';
+                    titleDiv.textContent = session.display_title;
+
+                    const metaDiv = document.createElement('div');
+                    metaDiv.className = 'session-meta';
+
+                    // Format last activity time
+                    const lastActivity = new Date(session.last_activity);
+                    const now = new Date();
+                    const diffMinutes = Math.floor((now - lastActivity) / (1000 * 60));
+
+                    let timeText;
+                    if (diffMinutes < 1) {
+                        timeText = 'Just now';
+                    } else if (diffMinutes < 60) {
+                        timeText = `${diffMinutes}m ago`;
+                    } else if (diffMinutes < 1440) {
+                        const hours = Math.floor(diffMinutes / 60);
+                        timeText = `${hours}h ago`;
+                    } else {
+                        const days = Math.floor(diffMinutes / 1440);
+                        timeText = `${days}d ago`;
+                    }
+
+                    metaDiv.textContent = `${timeText} · ${session.message_count} messages`;
+
+                    sessionDiv.appendChild(titleDiv);
+                    sessionDiv.appendChild(metaDiv);
+
+                    // Add click handler
+                    sessionDiv.addEventListener('click', (event) => {
+                        this.switchToSession(session.session_id, event.currentTarget);
+                    });
+
+                    this.sessionsList.appendChild(sessionDiv);
+                });
+            } else {
+                console.error('Failed to load sessions:', result.message);
+            }
+
+        } catch (error) {
+            console.error('Error loading user sessions:', error);
+        }
+    }
+
+    async switchToSession(sessionId, clickedElement) {
+        if (this.sessionId === sessionId) {
+            // Already on this session
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/chat/sessions/${sessionId}/`, {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': this.getCsrfToken()
+                }
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                alert(`Failed to load session: ${error.message}`);
+                return;
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Clear current chat
+                this.messagesContainer.innerHTML = '';
+
+                // Set current session ID
+                this.sessionId = result.session.session_id;
+
+                // Load all messages from the session (without auto-playing TTS audio)
+                if (result.messages && result.messages.length > 0) {
+                    result.messages.forEach(message => {
+                        this.addMessage(
+                            message.role,
+                            message.content,
+                            message.tts_audio || null,
+                            message.audio_file?.speech_analysis || null,
+                            false  // Don't auto-play TTS audio when loading history
+                        );
+                    });
+                } else {
+                    // Empty session
+                    this.messagesContainer.innerHTML = `
+                        <div class="welcome-message">
+                            <h2>Session Loaded</h2>
+                            <p>Continue your conversation from where you left off.</p>
+                        </div>
+                    `;
+                }
+
+                // Update active session in sidebar
+                document.querySelectorAll('.session-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                if (clickedElement) {
+                    clickedElement.classList.add('active');
+                }
+
+                console.log(`Switched to session: ${sessionId}`);
+            }
+
+        } catch (error) {
+            console.error('Error switching to session:', error);
+            alert('Failed to load session. Please try again.');
+        }
     }
 }
 

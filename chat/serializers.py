@@ -1,7 +1,7 @@
 from rest_framework import serializers
 import os
 from django.utils import timezone
-from .models import ChatMessage, AudioFile, VoiceProfile, TTSAudioFile
+from .models import ChatMessage, AudioFile, VoiceProfile, TTSAudioFile, ChatSession
 
 
 class AudioFileSerializer(serializers.ModelSerializer):
@@ -299,3 +299,42 @@ class VoiceProfileUploadSerializer(serializers.Serializer):
                 )
         
         return voice_profile
+
+
+class ChatSessionSerializer(serializers.ModelSerializer):
+    """Serializer for ChatSession model."""
+    display_title = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ChatSession
+        fields = [
+            'id',
+            'session_id',
+            'title',
+            'display_title',
+            'message_count',
+            'last_activity',
+            'created_at',
+            'updated_at'
+        ]
+        read_only_fields = ['id', 'session_id', 'created_at', 'updated_at']
+    
+    def get_display_title(self, obj):
+        """Get display title for the session."""
+        return obj.get_display_title()
+
+
+class ChatSessionListResponseSerializer(serializers.Serializer):
+    """Serializer for session list response."""
+    success = serializers.BooleanField()
+    message = serializers.CharField(required=False)
+    count = serializers.IntegerField(required=False)
+    sessions = ChatSessionSerializer(many=True, required=False)
+
+
+class ChatSessionDetailResponseSerializer(serializers.Serializer):
+    """Serializer for session detail response with messages."""
+    success = serializers.BooleanField()
+    message = serializers.CharField(required=False)
+    session = ChatSessionSerializer(required=False)
+    messages = ChatMessageSerializer(many=True, required=False)

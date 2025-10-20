@@ -18,7 +18,10 @@ from .serializers import (
     SendMessageResponseSerializer,
     VoiceProfileSerializer,
     VoiceProfileUploadSerializer,
-    VoiceProfileUpdateSerializer
+    VoiceProfileUpdateSerializer,
+    ChatSessionSerializer,
+    ChatSessionListResponseSerializer,
+    ChatSessionDetailResponseSerializer
 )
 
 
@@ -479,3 +482,99 @@ class VoiceProfileUpdateView(APIView):
             'message': 'Validation failed',
             'errors': input_serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ChatSessionListView(APIView):
+    """API view for listing authenticated user's chat sessions."""
+    permission_classes = [AllowAny]
+    
+    @extend_schema(
+        summary="List user's chat sessions",
+        description="Get a list of all chat sessions for the authenticated user. Returns sessions ordered by most recent activity first. Anonymous users cannot access this endpoint.",
+        responses={
+            200: ChatSessionListResponseSerializer,
+        },
+    )
+    def get(self, request):
+        try:
+            # Only authenticated users can browse sessions
+            if not request.user.is_authenticated:
+                return Response({
+                    'success': False,
+                    'message': 'Authentication required to view chat sessions',
+                }, status=status.HTTP_401_UNAUTHORIZED)
+            
+            sessions = ChatSession.objects.filter(
+                user=request.user
+            ).order_by('-last_activity')
+            
+            serializer = ChatSessionSerializer(sessions, many=True)
+            
+            return Response({
+                'success': True,
+                'count': sessions.count(),
+                'sessions': serializer.data,
+            }, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({
+                'success': False,
+                'message': 'Error retrieving chat sessions',
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ChatSessionDetailView(APIView):
+    """API view for retrieving a specific chat session with all messages."""
+    permission_classes = [AllowAny]
+    
+    @extend_schema(
+        summary="Get chat session details with messages",
+        description="Retrieve a specific chat session and all its messages. Users can only access their own sessions. Messages are returned in chronological order.",
+        responses={
+            200: ChatSessionDetailResponseSerializer,
+        },
+    )
+    def get(self, request, session_id):
+        try:
+            if not request.user.is_authenticated:
+                return Response({
+                    'success': False,
+                    'message': 'Authentication required to view session details',
+                }, status=status.HTTP_401_UNAUTHORIZED)
+            
+            # Get session and verify it belongs to the authenticated user
+            try:
+                session = ChatSession.objects.get(
+                    session_id=session_id,
+                    user=request.user
+                )
+            except ChatSession.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'message': f'Session {session_id} not found or you do not have permission to access it',
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            messages = ChatMessage.objects.filter(
+                session=session
+            ).order_by('timestamp')
+            
+            session_serializer = ChatSessionSerializer(session)
+            messages_serializer = ChatMessageSerializer(messages, many=True)
+            
+            return Response({
+                'success': True,
+                'session': session_serializer.data,
+                'messages': messages_serializer.data,
+            }, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({
+                'success': False,
+                'message': 'Error retrieving session details',
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

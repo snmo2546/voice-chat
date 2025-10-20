@@ -64,15 +64,38 @@ body {
     margin-bottom: 4px;
     border-radius: 6px;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
 }
 
 .session-item:hover {
     background-color: #2a2b32;
+    border-left-color: #565869;
 }
 
 .session-item.active {
     background-color: #343541;
+    border-left-color: #10a37f;
+}
+
+.session-item.loading {
+    cursor: default;
+    opacity: 0.6;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.session-item.loading:hover {
+    background-color: transparent;
+    border-left-color: transparent;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 0.6;
+    }
+    50% {
+        opacity: 0.3;
+    }
 }
 
 .session-title {
@@ -87,6 +110,13 @@ body {
 .session-meta {
     font-size: 12px;
     color: #8e8ea0;
+}
+
+.empty-sessions {
+    padding: 20px;
+    text-align: center;
+    color: #8e8ea0;
+    font-size: 14px;
 }
 
 /* Chat Area Styles */
