@@ -156,10 +156,6 @@ LOCAL_LLM_ENDPOINT = os.getenv('LOCAL_LLM_ENDPOINT', 'http://localhost:11434/api
 LOCAL_LLM_MODEL = os.getenv('LOCAL_LLM_MODEL', 'deepseek-r1:8b')
 LOCAL_LLM_TIMEOUT = int(os.getenv('LOCAL_LLM_TIMEOUT', '120'))  # Request timeout in seconds
 
-# TTS Backend Selection
-# Options: 'piper' (fast, CPU-friendly) or 'coqui' (voice cloning, GPU-optimized)
-TTS_BACKEND = os.getenv('TTS_BACKEND', 'piper')
-
 # Piper TTS Settings (fast, local, CPU-optimized)
 # Multi-language Piper models (auto-selected based on detected language)
 PIPER_MODELS = {

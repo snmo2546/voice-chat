@@ -53,7 +53,6 @@ The application uses a `.env` file for configuration. Key variables:
 - `LOCAL_LLM_TIMEOUT` - Request timeout in seconds
 
 **TTS Backend Settings:**
-- `TTS_BACKEND` - TTS engine selection (piper/coqui, default: piper)
 - **Piper TTS** (recommended for CPU):
   - `PIPER_DEFAULT_MODEL_PATH` - Path to .onnx model file
   - `PIPER_DEFAULT_MODEL_CONFIG` - Path to .onnx.json config file
@@ -568,17 +567,13 @@ The application supports two TTS backends with different performance characteris
 
 ### Selecting Backend
 
-**Global Setting** (`.env`):
-```bash
-TTS_BACKEND=piper  # or 'coqui'
-```
+The TTS backend is selected based on the **speed mode** in the frontend:
+- **Fast mode** → Uses Piper TTS (optimized for speed)
+- **Quality mode** → Uses Coqui TTS (optimized for quality and voice cloning)
 
-**Per-Voice Override**:
-- Each VoiceProfile has a `tts_backend` field
-- Automatically set based on uploaded file type:
-  - `.onnx` + `.json` → Piper
-  - `.wav/.mp3/.webm` → Coqui
-- Voice profile's backend overrides global setting
+Each VoiceProfile can provide models for either backend:
+- **Piper**: `piper_model_file` (.onnx) + `piper_config_file` (.json)
+- **Coqui**: `reference_audio` (.wav/.mp3/.webm)
 
 ### Quick Start with Piper
 
@@ -588,11 +583,10 @@ TTS_BACKEND=piper  # or 'coqui'
    - `en_US-lessac-medium.onnx.json`
 3. Set in `.env`:
    ```bash
-   TTS_BACKEND=piper
-   PIPER_DEFAULT_MODEL_PATH=media/piper_voices/en_US-lessac-medium.onnx
-   PIPER_DEFAULT_MODEL_CONFIG=media/piper_voices/en_US-lessac-medium.onnx.json
+   PIPER_EN_MODEL_PATH=media/piper_voices/en_US-lessac-medium.onnx
+   PIPER_EN_CONFIG_PATH=media/piper_voices/en_US-lessac-medium.onnx.json
    ```
-4. Restart server - TTS now 10-100x faster!
+4. Restart server - TTS now 10-100x faster in fast mode!
 
 ## Voice Profile Management
 
