@@ -157,7 +157,7 @@ class CloneTTSService:
                 cls._device = "cuda" if torch.cuda.is_available() else "cpu"
                 print(f'Loading TTS model on device: {cls._device}')
                 
-                model_name = getattr(settings, 'CLONETTS_MODEL_NAME', 'tts_models/multilingual/multi-dataset/xtts_v2')
+                model_name = getattr(settings, 'COQUITTS_MODEL_NAME', 'tts_models/multilingual/multi-dataset/xtts_v2')
                 cls._model = TTS(model_name).to(cls._device)
                 
                 print(f'TTS model loaded successfully: {model_name}')
@@ -199,17 +199,17 @@ class CloneTTSService:
         try:
             model = cls.get_model()
             
-            output_format = getattr(settings, 'CLONETTS_OUTPUT_FORMAT', 'wav')
+            output_format = getattr(settings, 'COQUITTS_OUTPUT_FORMAT', 'wav')
             
             detected_lang = detect_language(text)
             print(f'Detected language: {detected_lang} for text: "{text[:50]}..."')
             
             if not speaker_wav or not os.path.exists(speaker_wav):
-                speaker_wav = getattr(settings, 'CLONETTS_DEFAULT_SPEAKER_WAV', None)
+                speaker_wav = getattr(settings, 'COQUITTS_DEFAULT_SPEAKER_WAV', None)
                 if not speaker_wav or not os.path.exists(speaker_wav):
                     raise ValueError(
                         "No valid speaker_wav provided and no default speaker found. "
-                        "Please upload a voice profile or configure CLONETTS_DEFAULT_SPEAKER_WAV."
+                        "Please upload a voice profile or configure COQUITTS_DEFAULT_SPEAKER_WAV."
                     )
             
             import tempfile

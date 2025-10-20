@@ -172,8 +172,8 @@ PIPER_MODELS = {
 }
 
 # TTS (Text-to-Speech) Settings - Coqui TTS with XTTS v2
-CLONETTS_MODEL_NAME = os.getenv('CLONETTS_MODEL_NAME', 'tts_models/multilingual/multi-dataset/xtts_v2')
-CLONETTS_OUTPUT_FORMAT = os.getenv('CLONETTS_OUTPUT_FORMAT', 'wav')  # Options: 'wav', 'mp3'
-CLONETTS_DEFAULT_SPEAKER_WAV = BASE_DIR / 'media' / 'voice_profiles' / 'default_voice.wav'
+COQUITTS_MODEL_NAME = os.getenv('COQUITTS_MODEL_NAME', 'tts_models/multilingual/multi-dataset/xtts_v2')
+COQUITTS_OUTPUT_FORMAT = os.getenv('COQUITTS_OUTPUT_FORMAT', 'wav')  # Options: 'wav', 'mp3'
+COQUITTS_DEFAULT_SPEAKER_WAV = BASE_DIR / 'media' / 'voice_profiles' / 'default_voice.wav'
 # Note: Place a default voice reference audio file at the path above, or upload via admin/API
 # The file should be 6-30 seconds of clean speech from the desired voice
