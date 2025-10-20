@@ -171,7 +171,6 @@ class VoiceRecordingRequestSerializer(serializers.Serializer):
 class VoiceProfileSerializer(serializers.ModelSerializer):
     """Serializer for VoiceProfile model."""
     reference_audio_url = serializers.SerializerMethodField()
-    is_system_default = serializers.SerializerMethodField()
     
     class Meta:
         model = VoiceProfile
@@ -181,7 +180,6 @@ class VoiceProfileSerializer(serializers.ModelSerializer):
             'name',
             'tts_backend',
             'is_default',
-            'is_system_default',
             'reference_audio_url',
             'created_at'
         ]
@@ -192,10 +190,6 @@ class VoiceProfileSerializer(serializers.ModelSerializer):
         if obj.reference_audio:
             return obj.reference_audio.url
         return None
-    
-    def get_is_system_default(self, obj):
-        """Check if this is a system voice (no user associated)."""
-        return obj.user is None
 
 
 class VoiceProfileUploadSerializer(serializers.Serializer):

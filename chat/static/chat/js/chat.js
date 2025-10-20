@@ -643,7 +643,7 @@ class VoiceChat {
 
                     const metaDiv = document.createElement('div');
                     metaDiv.className = 'voice-profile-meta';
-                    metaDiv.textContent = `ID: ${profile.voice_id.substring(0, 8)}... ${profile.is_system_default ? '(System)' : '(Custom)'}`;
+                    metaDiv.textContent = `ID: ${profile.voice_id.substring(0, 8)}...`;
 
                     infoDiv.appendChild(nameDiv);
                     infoDiv.appendChild(metaDiv);
