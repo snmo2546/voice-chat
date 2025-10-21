@@ -175,6 +175,7 @@ body {
     display: flex;
     gap: 12px;
     padding: 0 20px;
+    align-items: flex-start;
 }
 
 .message.user {
@@ -202,6 +203,7 @@ body {
     flex-shrink: 0;
     font-weight: 600;
     font-size: 14px;
+    margin-top: 2px;
 }
 
 .message.user .message-avatar {
@@ -215,7 +217,7 @@ body {
 }
 
 .message-content {
-    padding: 12px 16px;
+    padding: 10px 16px;
     border-radius: 12px;
     line-height: 1.6;
     font-size: 15px;
