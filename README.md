@@ -18,7 +18,7 @@ A Django-based web application that provides a ChatGPT-style interface with voic
 
 ### Prerequisites
 
-- Python 3.8+
+- Python 3.11+
 - [Ollama](https://ollama.ai) (for local LLM)
 - FFmpeg (for audio conversion)
 
