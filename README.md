@@ -2,6 +2,8 @@
 
 A Django-based web application that provides a ChatGPT-style interface with voice recording capabilities. Chat with AI using your voice or text, and get audio responses back.
 
+![Preview](https://i.postimg.cc/ZRY7q6fT/voice-chat.png)
+
 ## Features
 
 - **Voice & Text Chat**: Send messages via voice recording or text input
